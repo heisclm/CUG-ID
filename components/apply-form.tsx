@@ -145,7 +145,7 @@ export default function ApplyForm() {
     if (!profile?.uid) {
       console.error('No user profile found for upload');
       setUploadError(true);
-      return;
+      return null;
     }
 
     setIsUploading(true);

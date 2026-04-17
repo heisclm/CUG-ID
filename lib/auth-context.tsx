@@ -47,65 +47,82 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Safety timeout to ensure app doesn't stay stuck in loading forever
+    const timeout = setTimeout(() => {
+      setLoading(prev => {
+        if (prev) {
+          console.warn('Auth loading timed out. Clearing loading state.');
+          return false;
+        }
+        return prev;
+      });
+    }, 8000);
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        let userProfile: UserProfile;
+      try {
+        setUser(user);
+        if (user) {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          let userProfile: UserProfile;
 
-        if (userDoc.exists()) {
-          userProfile = userDoc.data() as UserProfile;
-        } else {
-          // Check if user is pre-assigned a staff role
-          let assignedRole: 'STUDENT' | 'ADMIN' | 'SECURITY' | 'INVIGILATOR' = 'STUDENT';
-          if (user.email) {
-            try {
-              const staffDoc = await getDoc(doc(db, 'staff_roles', user.email));
-              if (staffDoc.exists()) {
-                assignedRole = staffDoc.data().role;
+          if (userDoc.exists()) {
+            userProfile = userDoc.data() as UserProfile;
+          } else {
+            // Check if user is pre-assigned a staff role
+            let assignedRole: 'STUDENT' | 'ADMIN' | 'SECURITY' | 'INVIGILATOR' = 'STUDENT';
+            if (user.email) {
+              try {
+                const staffDoc = await getDoc(doc(db, 'staff_roles', user.email));
+                if (staffDoc.exists()) {
+                  assignedRole = staffDoc.data().role;
+                }
+              } catch (e) {
+                console.error("Error checking staff roles:", e);
               }
-            } catch (e) {
-              console.error("Error checking staff roles:", e);
             }
+
+            userProfile = {
+              uid: user.uid,
+              email: user.email || '',
+              role: assignedRole,
+              fullName: user.displayName || 'New User',
+            };
+            await setDoc(doc(db, 'users', user.uid), {
+              ...userProfile,
+              createdAt: serverTimestamp(),
+            });
           }
+          setProfile(userProfile);
 
-          userProfile = {
-            uid: user.uid,
-            email: user.email || '',
-            role: assignedRole,
-            fullName: user.displayName || 'New Student',
-          };
-          await setDoc(doc(db, 'users', user.uid), {
-            ...userProfile,
-            createdAt: serverTimestamp(),
-          });
-          // Notification should be handled by backend or admin
-          // to comply with security rules (only admins can create notifications)
+          // Fetch ID Card if student
+          if (userProfile.role === 'STUDENT') {
+            const idQuery = query(collection(db, 'id_cards'), where('studentUid', '==', user.uid), where('status', '==', 'ACTIVE'));
+            onSnapshot(idQuery, (snapshot) => {
+              if (!snapshot.empty) {
+                setIdCard(snapshot.docs[0].data() as any);
+              } else {
+                setIdCard(null);
+              }
+            }, (error) => {
+              console.error("ID card snapshot error:", error);
+            });
+          }
+        } else {
+          setProfile(null);
+          setIdCard(null);
         }
-        setProfile(userProfile);
-
-        // Fetch ID Card if student
-        if (userProfile.role === 'STUDENT') {
-          const idQuery = query(collection(db, 'id_cards'), where('studentUid', '==', user.uid), where('status', '==', 'ACTIVE'));
-          onSnapshot(idQuery, (snapshot) => {
-            console.log('ID card snapshot received, docs count:', snapshot.size);
-            if (!snapshot.empty) {
-              console.log('ID card found:', snapshot.docs[0].id);
-              setIdCard(snapshot.docs[0].data() as any);
-            } else {
-              console.log('No active ID card found for user');
-              setIdCard(null);
-            }
-          });
-        }
-      } else {
-        setProfile(null);
-        setIdCard(null);
+      } catch (error) {
+        console.error("Auth state change error:", error);
+      } finally {
+        setLoading(false);
+        clearTimeout(timeout);
       }
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   const login = async () => {

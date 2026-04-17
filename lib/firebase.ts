@@ -4,7 +4,7 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 // Import the Firebase configuration from the local config file
-import firebaseConfig from '../firebase-applet-config.json';
+import firebaseConfig from '../firebase-config.json';
 
 // Initialize Firebase SDK
 const app = initializeApp(firebaseConfig);

@@ -103,6 +103,18 @@ export default function StudentDashboard() {
       applicationId: latestApp?.id,
       studentUid: profile?.uid,
       studentId: latestApp?.studentId,
+      custom_fields: [
+        {
+          display_name: "Application ID",
+          variable_name: "application_id",
+          value: latestApp?.id
+        },
+        {
+          display_name: "Student ID",
+          variable_name: "student_id",
+          value: latestApp?.studentId
+        }
+      ]
     },
   }), [latestApp, profile]);
 
