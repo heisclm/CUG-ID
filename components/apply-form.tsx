@@ -5,9 +5,8 @@ import { useAuth } from '@/lib/auth-context';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { db, storage } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, doc, getDoc, query, where, getDocs } from 'firebase/firestore';
-import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { Upload, CheckCircle, Loader2, CreditCard, X, Crop as CropIcon, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useRouter } from 'next/navigation';
@@ -155,7 +154,7 @@ export default function ApplyForm() {
     photoUrlRef.current = null;
     
     try {
-      // Convert file to Base64 first (we'll use this as a fallback)
+      // Convert file to Base64 for the API request
       const reader = new FileReader();
       const base64Data = await new Promise<string>((resolve, reject) => {
         reader.onload = () => {
@@ -165,10 +164,8 @@ export default function ApplyForm() {
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-
-      const photoRef = ref(storage, `photos/${profile.uid}_${Date.now()}.jpg`);
       
-      // Progress simulation
+      // Progress simulation (since native fetch doesn't support upload progress without XHR)
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
           if (prev >= 90) {
@@ -180,30 +177,36 @@ export default function ApplyForm() {
       }, 100);
 
       try {
-        // Try Storage upload with a 15-second timeout
-        const uploadPromise = uploadString(photoRef, base64Data.split(',')[1], 'base64', {
-          contentType: 'image/jpeg',
-          customMetadata: { uid: profile.uid }
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            file: base64Data, // Data URL
+            publicId: `${profile.uid}_${Date.now()}`,
+          }),
         });
 
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Storage timeout')), 15000)
-        );
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
 
-        const snapshot = await Promise.race([uploadPromise, timeoutPromise]) as any;
-        const url = await getDownloadURL(snapshot.ref);
+        const data = await response.json();
         
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
         clearInterval(progressInterval);
         setUploadProgress(100);
-        setPhotoUrl(url);
-        photoUrlRef.current = url;
+        setPhotoUrl(data.secure_url);
+        photoUrlRef.current = data.secure_url;
         setIsUploading(false);
-        return url;
-      } catch (storageError) {
-        console.warn('Firebase Storage failed or timed out, using Firestore fallback:', storageError);
-        
-        // FALLBACK: Use the Base64 data URL directly
-        // This is extremely robust as it doesn't rely on the Storage service
+        return data.secure_url;
+      } catch (uploadError) {
+        console.warn('Cloudinary upload failed, using Data URL fallback:', uploadError);
+        // FALLBACK: Use the Base64 data URL directly if external storage fails
         clearInterval(progressInterval);
         setUploadProgress(100);
         setPhotoUrl(base64Data);
@@ -381,7 +384,7 @@ export default function ApplyForm() {
     <div className="max-w-5xl mx-auto">
       <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Main Form Section */}
-        <div className="lg:col-span-8 space-y-8">
+        <div className="lg:col-span-8 space-y-8 order-2 lg:order-1">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -549,7 +552,7 @@ export default function ApplyForm() {
         </div>
 
         {/* Sidebar Section: Photo Upload */}
-        <div className="lg:col-span-4 space-y-6">
+        <div className="lg:col-span-4 space-y-6 order-1 lg:order-2">
           <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
