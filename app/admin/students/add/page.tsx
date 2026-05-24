@@ -46,7 +46,7 @@ export default function AdminAddStudentPage() {
       const snap = await getDocs(q);
       const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       // Sort in memory by lastUpdatedDate or randomly if we don't have createdAt yet
-      data.sort((a, b) => {
+      data.sort((a: any, b: any) => {
         const dateA = a.createdAt?.toMillis() || a.academicStatus?.lastUpdatedDate?.toMillis() || 0;
         const dateB = b.createdAt?.toMillis() || b.academicStatus?.lastUpdatedDate?.toMillis() || 0;
         return dateB - dateA;
