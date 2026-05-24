@@ -47,13 +47,14 @@ export async function POST(req: Request) {
     // Fetch clearance status from students collection
     const studentRef = adminDb.collection('students').doc(verifiedData.data.s);
     const studentDoc = await studentRef.get();
-    const isClearedForExam = studentDoc.exists ? (studentDoc.data()?.isClearedForExam ?? false) : false;
+    const academicStatus = studentDoc.exists ? studentDoc.data()?.academicStatus : null;
+    const isEligibleForCurrentExam = academicStatus ? (academicStatus.isEligibleForCurrentExam ?? false) : false;
 
     return NextResponse.json({
       verified: true,
       studentDetails: {
         ...idCardData,
-        isClearedForExam
+        isEligibleForCurrentExam
       }
     });
 

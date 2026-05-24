@@ -468,11 +468,11 @@ export default function SecurityScanPage() {
 
                   {isExamMode && (
                     <div className={`p-6 rounded-3xl border-2 flex flex-col items-center gap-3 text-center ${
-                      studentDetails.isClearedForExam 
+                      studentDetails.isEligibleForCurrentExam 
                         ? 'bg-green-500/10 border-green-500 text-green-600' 
                         : 'bg-red-500/10 border-red-500 text-red-600'
                     }`}>
-                      {studentDetails.isClearedForExam ? (
+                      {studentDetails.isEligibleForCurrentExam ? (
                         <>
                           <CheckCircle size={40} />
                           <div>
