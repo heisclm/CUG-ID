@@ -1,14 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Moon, Sun, Menu } from 'lucide-react';
+import { Search, Menu } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import { useTheme } from 'next-themes';
 import NotificationDropdown from './notification-dropdown';
 
 const Navbar = ({ onMenuClick }: { onMenuClick: () => void }) => {
   const { profile } = useAuth();
-  const { setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   // Avoid hydration mismatch
@@ -36,22 +34,6 @@ const Navbar = ({ onMenuClick }: { onMenuClick: () => void }) => {
       </div>
 
       <div className="flex items-center gap-6">
-        {/* Theme Toggle */}
-        <div className="hidden lg:flex items-center gap-1 p-1 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
-          <button 
-            onClick={() => setTheme('light')}
-            className={`p-2 rounded-lg transition-all ${resolvedTheme === 'light' ? 'bg-white dark:bg-gray-700 text-orange-500 shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
-          >
-            <Sun size={18} />
-          </button>
-          <button 
-            onClick={() => setTheme('dark')}
-            className={`p-2 rounded-lg transition-all ${resolvedTheme === 'dark' ? 'bg-white dark:bg-gray-700 text-orange-500 shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
-          >
-            <Moon size={18} />
-          </button>
-        </div>
-
         {/* Notifications */}
         <NotificationDropdown />
 

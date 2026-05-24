@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useTheme } from 'next-themes';
 import { 
   LayoutDashboard, 
   UserCircle, 
@@ -12,9 +11,7 @@ import {
   Settings, 
   LogOut,
   GraduationCap,
-  X,
-  Sun,
-  Moon
+  X
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
@@ -22,7 +19,6 @@ import { cn } from '@/lib/utils';
 const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const pathname = usePathname();
   const { profile, logout } = useAuth();
-  const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -100,22 +96,6 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) 
         </nav>
 
         <div className="mt-auto pt-6 border-t border-gray-100 dark:border-gray-800 space-y-4">
-          {mounted && (
-            <div className="flex lg:hidden items-center gap-1 p-1 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
-              <button 
-                onClick={() => setTheme('light')}
-                className={`flex-1 flex justify-center p-2 rounded-lg transition-all ${resolvedTheme === 'light' ? 'bg-white dark:bg-gray-700 text-orange-500 shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
-              >
-                <Sun size={18} />
-              </button>
-              <button 
-                onClick={() => setTheme('dark')}
-                className={`flex-1 flex justify-center p-2 rounded-lg transition-all ${resolvedTheme === 'dark' ? 'bg-white dark:bg-gray-700 text-orange-500 shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
-              >
-                <Moon size={18} />
-              </button>
-            </div>
-          )}
           <button
             onClick={() => logout()}
             className="flex items-center gap-3 px-4 py-3 w-full text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all duration-200"

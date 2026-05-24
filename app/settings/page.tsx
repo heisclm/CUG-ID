@@ -2,12 +2,9 @@
 
 import React from 'react';
 import DashboardLayout from '@/components/dashboard-layout';
-import { useTheme } from 'next-themes';
-import { Moon, Sun, Bell, Shield, Key } from 'lucide-react';
+import { Bell, Shield, Key } from 'lucide-react';
 
 export default function SettingsPage() {
-  const { theme, setTheme } = useTheme();
-
   return (
     <DashboardLayout>
       <div className="max-w-3xl mx-auto space-y-8">
@@ -18,33 +15,6 @@ export default function SettingsPage() {
 
         <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 overflow-hidden">
           <div className="p-6 sm:p-8 space-y-8">
-            {/* Appearance */}
-            <div className="space-y-4">
-              <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <Sun size={16} className="text-orange-500" /> Appearance
-              </h2>
-              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl">
-                <div>
-                  <div className="font-bold text-gray-900 dark:text-white">Theme</div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Select your preferred color theme</div>
-                </div>
-                <div className="flex bg-gray-200 dark:bg-gray-700 p-1 rounded-xl">
-                  <button
-                    onClick={() => setTheme('light')}
-                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${theme === 'light' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
-                  >
-                    Light
-                  </button>
-                  <button
-                    onClick={() => setTheme('dark')}
-                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${theme === 'dark' ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
-                  >
-                    Dark
-                  </button>
-                </div>
-              </div>
-            </div>
-
             {/* Notifications */}
             <div className="space-y-4">
               <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
