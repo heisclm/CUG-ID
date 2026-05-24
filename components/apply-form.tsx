@@ -245,20 +245,29 @@ export default function ApplyForm() {
     setIsValidated(false);
 
     try {
-      const studentDoc = await getDoc(doc(db, 'students', studentIdValue));
-      
-      if (!studentDoc.exists()) {
-        setValidationError('Student ID not found in the database. Please contact administration.');
+      // Use the secure API route instead of direct Firestore query to bypass rules
+      const response = await fetch('/api/students/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ studentId: studentIdValue }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setValidationError(result.error || 'Student ID not found in the database. Please contact administration.');
         setValue('fullName', '');
         setValue('department', '');
         setValue('program', '');
         return;
       }
 
-      const appsQuery = query(collection(db, 'applications'), where('studentId', '==', studentIdValue), where('status', '==', 'PENDING'));
+      const appsQuery = query(collection(db, 'applications'), where('studentUid', '==', profile?.uid), where('status', '==', 'PENDING'));
       const appsSnap = await getDocs(appsQuery);
       if (!appsSnap.empty) {
-        setValidationError('An application is already pending for this Student ID.');
+        setValidationError('An application is already pending for your account.');
         return;
       }
 
@@ -269,7 +278,7 @@ export default function ApplyForm() {
         return;
       }
 
-      const data = studentDoc.data();
+      const data = result.data;
       setValue('fullName', data.fullName);
       setValue('department', data.department);
       setValue('program', data.program || 'N/A');

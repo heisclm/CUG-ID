@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/dashboard-layout';
 import { useAuth } from '@/lib/auth-context';
 import { db } from '@/lib/firebase';
-import { collection, doc, query, getDocs, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, doc, query, getDocs, updateDoc, writeBatch, setDoc } from 'firebase/firestore';
 import { 
   Users, 
   Search,
@@ -15,7 +15,8 @@ import {
   Loader2,
   Trash2,
   ShieldCheck,
-  ChevronRight
+  ChevronRight,
+  Plus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -27,6 +28,7 @@ export default function AdminStudentsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [editingStudent, setEditingStudent] = useState<any | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
 
@@ -125,20 +127,43 @@ export default function AdminStudentsPage() {
     
     setProcessing(true);
     try {
-      const ref = doc(db, 'students', editingStudent.id);
-      await updateDoc(ref, {
-        fullName: editingStudent.fullName,
-        department: editingStudent.department,
-        level: editingStudent.level,
-        'academicStatus.isEligibleForCurrentExam': editingStudent.academicStatus?.isEligibleForCurrentExam ?? false,
-        'academicStatus.clearedAcademicYear': '2025/2026',
-        'academicStatus.lastUpdatedBy': profile?.email,
-        'academicStatus.lastUpdatedDate': new Date()
-      });
-
-      setStudents(prev => prev.map(s => s.id === editingStudent.id ? editingStudent : s));
-      showNotification('Student updated successfully.', 'success');
+      if (isCreating) {
+        if (!editingStudent.studentId) {
+           showNotification('Student ID is required.', 'error');
+           setProcessing(false);
+           return;
+        }
+        const ref = doc(db, 'students', editingStudent.studentId);
+        await setDoc(ref, {
+          studentId: editingStudent.studentId,
+          fullName: editingStudent.fullName || '',
+          department: editingStudent.department || '',
+          level: editingStudent.level || '',
+          'academicStatus': {
+             isEligibleForCurrentExam: editingStudent.academicStatus?.isEligibleForCurrentExam ?? false,
+             clearedAcademicYear: '2025/2026',
+             lastUpdatedBy: profile?.email,
+             lastUpdatedDate: new Date()
+          }
+        });
+        setStudents(prev => [{ ...editingStudent, id: editingStudent.studentId }, ...prev]);
+        showNotification('Student created successfully.', 'success');
+      } else {
+        const ref = doc(db, 'students', editingStudent.id);
+        await updateDoc(ref, {
+          fullName: editingStudent.fullName,
+          department: editingStudent.department,
+          level: editingStudent.level,
+          'academicStatus.isEligibleForCurrentExam': editingStudent.academicStatus?.isEligibleForCurrentExam ?? false,
+          'academicStatus.clearedAcademicYear': '2025/2026',
+          'academicStatus.lastUpdatedBy': profile?.email,
+          'academicStatus.lastUpdatedDate': new Date()
+        });
+        setStudents(prev => prev.map(s => s.id === editingStudent.id ? editingStudent : s));
+        showNotification('Student updated successfully.', 'success');
+      }
       setEditingStudent(null);
+      setIsCreating(false);
     } catch (err) {
       console.error(err);
       showNotification('Update failed.', 'error');
@@ -174,6 +199,22 @@ export default function AdminStudentsPage() {
             </h1>
             <p className="text-gray-500 dark:text-gray-400 font-medium">Manage student eligibility and profiles for the current academic year.</p>
           </div>
+          <button 
+            onClick={() => {
+              setIsCreating(true);
+              setEditingStudent({
+                studentId: '',
+                fullName: '',
+                department: '',
+                level: '',
+                academicStatus: { isEligibleForCurrentExam: false }
+              });
+            }}
+            className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-black rounded-xl shadow-xl shadow-orange-500/20 transition-all flex items-center gap-2"
+          >
+            <Plus size={20} className="stroke-[3]" />
+            Add New Student
+          </button>
         </div>
 
         {/* Global Notifications */}
@@ -340,11 +381,14 @@ export default function AdminStudentsPage() {
             >
               <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-800">
                 <div>
-                  <h2 className="text-xl font-black text-gray-900 dark:text-white">Edit Profile</h2>
-                  <p className="text-sm text-gray-400 font-medium">Student ID: {editingStudent.studentId}</p>
+                  <h2 className="text-xl font-black text-gray-900 dark:text-white">{isCreating ? 'Add New Student' : 'Edit Profile'}</h2>
+                  {!isCreating && <p className="text-sm text-gray-400 font-medium">Student ID: {editingStudent.studentId}</p>}
                 </div>
                 <button 
-                  onClick={() => setEditingStudent(null)}
+                  onClick={() => {
+                    setEditingStudent(null);
+                    setIsCreating(false);
+                  }}
                   className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors text-gray-500"
                 >
                   <X size={20} />
@@ -356,6 +400,18 @@ export default function AdminStudentsPage() {
                 {/* Basic Details (Editable) */}
                 <div className="space-y-4">
                   <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Academic Details</h3>
+                  {isCreating && (
+                    <div className="space-y-1">
+                      <label className="text-xs font-black text-gray-500">Student ID</label>
+                      <input 
+                        type="text" 
+                        value={editingStudent.studentId || ''}
+                        onChange={e => setEditingStudent({...editingStudent, studentId: e.target.value})}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 outline-none font-bold transition-all text-gray-900 dark:text-white uppercase"
+                        placeholder="e.g. CUG12345"
+                      />
+                    </div>
+                  )}
                   <div className="space-y-1">
                     <label className="text-xs font-black text-gray-500">Full Name</label>
                     <input 
