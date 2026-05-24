@@ -9,6 +9,7 @@ import {
   CheckCircle2, 
   AlertCircle,
   TrendingUp,
+  TrendingDown,
   Users,
   ShieldCheck,
   QrCode,
@@ -34,35 +35,47 @@ const StudentDashboard = dynamic(() => import('@/components/student-dashboard'),
   </div>
 });
 
-const StatCard = ({ title, value, icon: Icon, color, trend }: any) => (
-  <motion.div 
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm shadow-gray-500/5 space-y-4 transition-colors"
-  >
-    <div className="flex items-center justify-between">
-      <div className={`p-3 rounded-2xl ${color} bg-opacity-10 text-opacity-100`}>
-        <Icon size={24} className={color.replace('bg-', 'text-')} />
-      </div>
-      {trend && (
-        <div className="flex items-center gap-1 text-green-500 text-xs font-bold bg-green-50 dark:bg-green-500/10 px-2 py-1 rounded-lg">
-          <TrendingUp size={12} />
-          {trend}
+const StatCard = ({ title, value, icon: Icon, color, trend }: any) => {
+  const isPositive = trend && trend.startsWith('+');
+  const isNegative = trend && trend.startsWith('-');
+  const IconTrend = isNegative ? TrendingDown : TrendingUp;
+  
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm shadow-gray-500/5 space-y-4 transition-colors"
+    >
+      <div className="flex items-center justify-between">
+        <div className={`p-3 rounded-2xl ${color} bg-opacity-10 text-opacity-100`}>
+          <Icon size={24} className={color.replace('bg-', 'text-')} />
         </div>
-      )}
-    </div>
-    <div>
-      <div className="text-sm font-medium text-gray-400 dark:text-gray-500">{title}</div>
-      <div className="text-2xl font-bold text-gray-800 dark:text-white mt-1">{value}</div>
-    </div>
-  </motion.div>
-);
+        {trend && (
+          <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg ${
+            isNegative 
+              ? 'text-red-500 bg-red-50 dark:bg-red-500/10' 
+              : 'text-green-500 bg-green-50 dark:bg-green-500/10'
+          }`}>
+            <IconTrend size={12} />
+            {trend}
+          </div>
+        )}
+      </div>
+      <div>
+        <div className="text-sm font-medium text-gray-400 dark:text-gray-500">{title}</div>
+        <div className="text-2xl font-bold text-gray-800 dark:text-white mt-1">{value}</div>
+      </div>
+    </motion.div>
+  );
+};
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState({
     totalStudents: 0,
+    studentTrend: 0,
     pendingApprovals: 0,
     activeIDs: 0,
+    idTrend: 0,
     securityScans: 0
   });
   const [recentApps, setRecentApps] = useState<any[]>([]);
@@ -73,11 +86,42 @@ const AdminDashboard = () => {
       const pendingSnap = await getDocs(query(collection(db, 'applications'), where('status', '==', 'PENDING')));
       const activeIDsSnap = await getDocs(query(collection(db, 'id_cards'), where('status', '==', 'ACTIVE')));
       
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const sixtyDaysAgo = new Date();
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+      let currentStudents = 0, prevStudents = 0;
+      studentsSnap.forEach(doc => {
+        const item = doc.data();
+        if (item.createdAt) {
+          const dt = item.createdAt.toDate();
+          if (dt >= thirtyDaysAgo) currentStudents++;
+          else if (dt >= sixtyDaysAgo) prevStudents++;
+        }
+      });
+      const stTrend = prevStudents > 0 ? Math.round(((currentStudents - prevStudents) / prevStudents) * 100) : (currentStudents > 0 ? 100 : 0);
+
+      let currentIds = 0, prevIds = 0;
+      activeIDsSnap.forEach(doc => {
+        const item = doc.data();
+        const df = item.issueDate || item.createdAt;
+        if (df) {
+          const dt = df.toDate();
+          if (dt >= thirtyDaysAgo) currentIds++;
+          else if (dt >= sixtyDaysAgo) prevIds++;
+        }
+      });
+      const idTrd = prevIds > 0 ? Math.round(((currentIds - prevIds) / prevIds) * 100) : (currentIds > 0 ? 100 : 0);
+
       setStats(prev => ({
         ...prev,
         totalStudents: studentsSnap.size,
+        studentTrend: stTrend,
         pendingApprovals: pendingSnap.size,
-        activeIDs: activeIDsSnap.size
+        activeIDs: activeIDsSnap.size,
+        idTrend: idTrd
       }));
     };
 
@@ -109,9 +153,9 @@ const AdminDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total Students" value={stats.totalStudents.toLocaleString()} icon={Users} color="bg-blue-500" trend="+12%" />
+        <StatCard title="Total Students" value={stats.totalStudents.toLocaleString()} icon={Users} color="bg-blue-500" trend={stats.studentTrend > 0 ? `+${stats.studentTrend}%` : stats.studentTrend < 0 ? `${stats.studentTrend}%` : undefined} />
         <StatCard title="Pending Approvals" value={stats.pendingApprovals.toLocaleString()} icon={Clock} color="bg-orange-500" />
-        <StatCard title="Active IDs" value={stats.activeIDs.toLocaleString()} icon={CheckCircle2} color="bg-green-500" trend="+8%" />
+        <StatCard title="Active IDs" value={stats.activeIDs.toLocaleString()} icon={CheckCircle2} color="bg-green-500" trend={stats.idTrend > 0 ? `+${stats.idTrend}%` : stats.idTrend < 0 ? `${stats.idTrend}%` : undefined} />
         <StatCard title="Security Scans" value={stats.securityScans.toLocaleString()} icon={ShieldCheck} color="bg-purple-500" />
       </div>
 
