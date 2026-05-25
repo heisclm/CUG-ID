@@ -20,6 +20,8 @@ export default function SettingsPage() {
       if (doc.exists() && doc.data().schoolLogoUrl) {
         setCurrentLogo(doc.data().schoolLogoUrl);
       }
+    }, (error) => {
+      console.warn("Could not load university settings logo: ", error);
     });
     return () => unsub();
   }, []);
@@ -32,21 +34,77 @@ export default function SettingsPage() {
     setUploadSuccess(false);
 
     try {
-      // Create a form data to upload the image
-      const formData = new FormData();
-      formData.append('file', file);
-      
+      // 1. Load image and compress/resize it using canvas to be tiny (under 25KB) and fast
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new window.Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 250;
+            const MAX_HEIGHT = 250;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > MAX_WIDTH) {
+                height *= MAX_WIDTH / width;
+                width = MAX_WIDTH;
+              }
+            } else {
+              if (height > MAX_HEIGHT) {
+                width *= MAX_HEIGHT / height;
+                height = MAX_HEIGHT;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.imageSmoothingEnabled = true;
+              ctx.imageSmoothingQuality = 'high';
+              ctx.drawImage(img, 0, 0, width, height);
+              resolve(canvas.toDataURL('image/jpeg', 0.85));
+            } else {
+              resolve(event.target?.result as string);
+            }
+          };
+          img.onerror = () => reject(new Error('Failed to load image element'));
+          img.src = event.target?.result as string;
+        };
+        reader.onerror = () => reject(new Error('FileReader source load error'));
+        reader.readAsDataURL(file);
+      });
+
+      // 2. Upload the compressed base64 representation to Cloudinary
       const res = await fetch('/api/upload', {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          file: base64Data,
+          folder: 'school_logos',
+          publicId: `cug_logo_school_${Date.now()}`
+        }),
       });
       
-      if (!res.ok) throw new Error('Upload failed');
-      const data = await res.json();
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Upload API returned error: ${errorText}`);
+      }
       
-      // Update global settings
+      const data = await res.json();
+      const logoUrl = data.secure_url;
+      
+      if (!logoUrl) {
+        throw new Error('No secure url returned from upload API');
+      }
+
+      // 3. Update global settings in firestore
       await setDoc(doc(db, 'settings', 'general'), {
-        schoolLogoUrl: data.url,
+        schoolLogoUrl: logoUrl,
         updatedAt: new Date().toISOString()
       }, { merge: true });
       
@@ -54,7 +112,7 @@ export default function SettingsPage() {
       setTimeout(() => setUploadSuccess(false), 3000);
     } catch (error) {
       console.error('Error uploading logo:', error);
-      alert('Failed to upload logo.');
+      alert('Failed to upload and save logo.');
     } finally {
       setIsUploading(false);
     }

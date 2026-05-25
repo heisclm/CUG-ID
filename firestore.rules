@@ -32,8 +32,11 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN';
+      return isAuthenticated() && (
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN') ||
+        request.auth.token.email == 'feraclem@gmail.com'
+      );
     }
 
     function isSecurity() {
@@ -122,6 +125,11 @@ service cloud.firestore {
                     request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
       // Only admins or system can create notifications
       allow create: if isAdmin(); 
+    }
+
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
   }
 }

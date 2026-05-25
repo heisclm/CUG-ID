@@ -61,10 +61,39 @@ const useCurrentTime = () => {
   return time;
 };
 
+const CugLogoSVG = () => (
+  <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+    {/* Shield Outer Outline with dual stroke */}
+    <path d="M50 8C70 8 82 17 84 39C87 72 50 92 50 92C50 92 13 72 16 39C18 17 30 8 50 8Z" fill="#ffffff" />
+    <path d="M50 11C67 11 78 19 80 40C82 68 50 87 50 87C50 87 18 68 20 40C22 19 33 11 50 11Z" fill="#0f172a" />
+    
+    {/* Ghana Flag Colors at top band */}
+    <path d="M24 26C31 18 40 13 50 13C60 13 69 18 76 26V33H24V26Z" fill="#ef4444" />
+    <rect x="24" y="33" width="52" height="6" fill="#fbbf24" />
+    <rect x="24" y="39" width="52" height="6" fill="#22c55e" />
+    
+    {/* Black Star in Ghana Flag section */}
+    <polygon points="50,33 52,37 56,37 53,40 54,44 50,42 46,44 47,40 44,37 48,37" fill="black" />
+
+    {/* Elegant Golden cross in center */}
+    <path d="M47 45H53V76H47V45Z" fill="#fbbf24" />
+    <path d="M37 51H63V57H37V51Z" fill="#fbbf24" />
+
+    {/* Central detailing inside the cross core */}
+    <circle cx="50" cy="54" r="5.5" fill="#ef4444" />
+    <circle cx="50" cy="54" r="3" fill="white" />
+    
+    {/* Small Book / Wisdom outline */}
+    <path d="M41 66H59" stroke="white" strokeWidth="2" strokeLinecap="round" />
+    <path d="M44 71H56" stroke="white" strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
+
 export default function StudentDashboard() {
   const { profile, idCard } = useAuth();
   const [latestApp, setLatestApp] = useState<any>(null);
   const [schoolLogoUrl, setSchoolLogoUrl] = useState('/cug-logo.jpg');
+  const [logoError, setLogoError] = useState(false);
   const currentTime = useCurrentTime();
   
   useEffect(() => {
@@ -72,6 +101,8 @@ export default function StudentDashboard() {
       if (doc.exists() && doc.data().schoolLogoUrl) {
         setSchoolLogoUrl(doc.data().schoolLogoUrl);
       }
+    }, (error) => {
+      console.warn("Could not load general school settings: ", error);
     });
 
     if (!profile?.uid) return unsubParams;
@@ -205,12 +236,44 @@ export default function StudentDashboard() {
 
     setIsDownloading(true);
     try {
-      const canvas = await html2canvas(input, {
-        scale: 2, // Higher resolution
-        useCORS: true, // Allow loading cross-origin images
-        allowTaint: false, // Prevent tainted canvas
-        backgroundColor: null, // Transparent background
+      // Create a temporary container for full-size desktop rendering
+      const portal = document.createElement('div');
+      portal.style.position = 'fixed';
+      portal.style.left = '-9999px';
+      portal.style.top = '-9999px';
+      portal.style.width = '480px';
+      portal.style.height = '302px';
+      document.body.appendChild(portal);
+
+      // Clone the card for capture
+      const clone = input.cloneNode(true) as HTMLElement;
+      clone.style.width = '480px';
+      clone.style.height = '302px';
+      clone.style.aspectRatio = '1.586/1';
+      clone.style.minHeight = '0px';
+
+      // Bypass mobile display queries inside the clone by copying responsive styles as active styles
+      const allElements = clone.querySelectorAll('*');
+      allElements.forEach((el) => {
+        const classes = Array.from(el.classList);
+        classes.forEach((className) => {
+          if (className.startsWith('sm:')) {
+            el.classList.add(className.substring(3));
+          }
+        });
       });
+
+      portal.appendChild(clone);
+
+      const canvas = await html2canvas(clone, {
+        scale: 2.5, // Ultra sharp high resolution
+        useCORS: true, 
+        allowTaint: false, 
+        backgroundColor: null,
+      });
+
+      // Cleanup
+      document.body.removeChild(portal);
 
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
@@ -342,25 +405,25 @@ export default function StudentDashboard() {
           {idCard ? (
             <div 
               id="id-card-element" 
-              className="relative aspect-auto sm:aspect-[1.586/1] w-full max-w-[460px] mx-auto rounded-3xl p-5 sm:p-7 text-white overflow-hidden group shadow-2xl min-h-[240px] sm:min-h-0"
+              className="relative aspect-[1.586/1] w-full max-w-[460px] mx-auto rounded-[24px] p-4 xs:p-5 sm:p-7 text-white overflow-hidden group shadow-2xl border border-white/20 select-none"
               style={{ 
-                background: 'linear-gradient(135deg, #fb923c 0%, #f97316 40%, #ea580c 100%)',
+                background: 'linear-gradient(135deg, #fb923c 0%, #f97316 45%, #ea580c 100%)',
               }}
             >
               {/* Subtle noise texture */}
               <div 
-                className="absolute inset-0 opacity-15 pointer-events-none mix-blend-overlay"
+                className="absolute inset-0 opacity-[0.08] pointer-events-none mix-blend-overlay"
                 style={{
                   backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
                 }}
               />
               
-              {/* Glassmorphic light blooms */}
-              <div className="absolute top-0 right-0 w-[200%] h-[200%] bg-gradient-to-bl from-white/30 via-transparent to-transparent opacity-40 mix-blend-overlay pointer-events-none -translate-y-1/2 translate-x-1/4 transform rotate-12" />
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-black/10 blur-3xl rounded-full mix-blend-multiply pointer-events-none -ml-20 -mb-20" />
+              {/* Apple-like specular glassmorphism light bloom */}
+              <div className="absolute top-0 right-0 w-[180%] h-[180%] bg-gradient-to-bl from-white/25 via-transparent to-transparent opacity-30 mix-blend-overlay pointer-events-none -translate-y-1/2 translate-x-1/4 transform rotate-12" />
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 blur-2xl rounded-full mix-blend-multiply pointer-events-none -ml-16 -mb-16" />
 
               {idCard.isFinalYear && (
-                <div className="absolute top-4 sm:top-5 right-4 sm:right-5 bg-black/20 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1.5 rounded-full border border-white/20 z-20 shadow-sm">
+                <div className="absolute top-3 xs:top-4 sm:top-5 right-3 xs:right-4 sm:right-5 bg-white/10 backdrop-blur-md text-white text-[7px] xs:text-[8px] sm:text-[10px] font-black px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full border border-white/30 z-20 shadow-sm uppercase tracking-wider">
                   FINAL YEAR
                 </div>
               )}
@@ -368,68 +431,72 @@ export default function StudentDashboard() {
               <div className="relative z-10 h-full flex flex-col justify-between">
                 {/* Header */}
                 <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-3">
-                    <div className="relative w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 bg-white shadow-sm rounded-[10px] p-1 overflow-hidden flex items-center justify-center">
-                       {/* Mix blend multiply removes the white background making it blend with the orange! */}
-                      <Image 
-                         src={schoolLogoUrl} 
-                         alt="School Logo" 
-                         fill
-                         className="object-contain" 
-                      />
+                  <div className="flex items-center gap-2 sm:gap-3.5">
+                    {/* Compact Glassmorphic Box Wrapper for School Logo */}
+                    <div className="relative w-8 h-8 xs:w-9 xs:h-9 sm:w-12 sm:h-12 flex-shrink-0 bg-white shadow-md rounded-[9px] sm:rounded-[12px] p-0.5 sm:p-1 overflow-hidden flex items-center justify-center border border-white/20">
+                      {(schoolLogoUrl === '/cug-logo.jpg' || logoError) ? (
+                        <CugLogoSVG />
+                      ) : (
+                        <img 
+                           src={schoolLogoUrl} 
+                           alt="School Logo" 
+                           className="w-full h-full object-contain mix-blend-multiply" 
+                           crossOrigin="anonymous"
+                           onError={() => setLogoError(true)}
+                        />
+                      )}
                     </div>
                     <div className="space-y-0.5 mt-0.5 pr-14 sm:pr-0">
-                      <div className="text-[8px] sm:text-[10px] font-semibold uppercase tracking-widest text-white/90 drop-shadow-sm leading-tight">Catholic University of Ghana</div>
-                      <div className="text-lg sm:text-2xl font-bold tracking-tight text-white drop-shadow-md leading-none mt-1">STUDENT ID</div>
+                      <div className="text-[7.5px] xs:text-[8.5px] sm:text-[10px] font-bold uppercase tracking-wider text-white/90 drop-shadow-sm leading-tight">Catholic University of Ghana</div>
+                      <div className="text-sm xs:text-base sm:text-2xl font-black tracking-tight text-white drop-shadow-md leading-none mt-1">STUDENT ID</div>
                     </div>
                   </div>
                 </div>
 
                 {/* Body section */}
-                <div className="flex gap-4 sm:gap-6 items-end mt-6 sm:mt-4">
-                  {/* Photo area */}
+                <div className="flex gap-3 xs:gap-4 sm:gap-6 items-end mt-4 sm:mt-5">
+                  {/* Photo area with Apple Rounded Corners */}
                   <div 
-                    className="relative w-24 h-32 sm:w-28 sm:h-[140px] rounded-[14px] sm:rounded-[18px] flex items-center justify-center overflow-hidden shrink-0 shadow-lg isolate"
+                    className="relative w-[72px] h-[96px] xs:w-20 xs:h-[108px] sm:w-28 sm:h-[135px] rounded-[10px] xs:rounded-[14px] sm:rounded-[18px] flex items-center justify-center overflow-hidden shrink-0 shadow-lg isolate"
                     style={{ 
-                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
                       boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)',
                       backdropFilter: 'blur(12px)',
                       WebkitBackdropFilter: 'blur(12px)',
-                      border: '1.5px solid rgba(255, 255, 255, 0.25)'
+                      border: '1.2px solid rgba(255, 255, 255, 0.25)'
                     }}
                   >
                     {idCard.photoUrl ? (
-                      <Image 
+                      <img 
                         src={idCard.photoUrl} 
                         alt="Student" 
-                        fill
-                        className="object-cover"
+                        className="w-full h-full object-cover"
                         referrerPolicy="no-referrer"
                         crossOrigin="anonymous"
                       />
                     ) : (
-                      <div className="text-white/40"><UserCircle size={40} className="sm:w-16 sm:h-16" /></div>
+                      <div className="text-white/40"><UserCircle className="w-10 h-10 sm:w-16 sm:h-16" /></div>
                     )}
                   </div>
                   
-                  {/* Details area */}
-                  <div className="flex-1 space-y-2 sm:space-y-3.5 min-w-0 pb-1">
+                  {/* Details area (Designed with scale-down responsive sizes to prevent layout overflow) */}
+                  <div className="flex-1 space-y-1.5 xs:space-y-2 sm:space-y-3.5 min-w-0 pb-[2px]">
                     <div>
-                      <div className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-white/70 drop-shadow-sm">Full Name</div>
-                      <div className="text-[14px] sm:text-lg font-bold leading-tight truncate drop-shadow-sm">{idCard.fullName}</div>
+                      <div className="text-[7px] xs:text-[8px] sm:text-[10px] font-bold uppercase tracking-widest text-white/70 drop-shadow-sm">Full Name</div>
+                      <div className="text-[11px] xs:text-[13px] sm:text-[1.25rem] font-extrabold leading-tight truncate drop-shadow-sm text-white">{idCard.fullName}</div>
                     </div>
                     <div>
-                      <div className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-white/70 drop-shadow-sm">Department</div>
-                      <div className="text-[12px] sm:text-[14px] font-semibold truncate drop-shadow-sm text-white/95">{idCard.department || 'N/A'}</div>
+                      <div className="text-[7px] xs:text-[8px] sm:text-[10px] font-bold uppercase tracking-widest text-white/70 drop-shadow-sm">Department</div>
+                      <div className="text-[9px] xs:text-[10.5px] sm:text-[0.9rem] font-bold truncate drop-shadow-sm text-white/95">{idCard.department || 'N/A'}</div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 sm:gap-4">
+                    <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <div className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-white/70 drop-shadow-sm">Student ID</div>
-                        <div className="text-[12px] sm:text-[14px] font-semibold truncate drop-shadow-sm text-white/95">{idCard.studentId}</div>
+                        <div className="text-[7px] xs:text-[8px] sm:text-[10px] font-bold uppercase tracking-widest text-white/70 drop-shadow-sm">Student ID</div>
+                        <div className="text-[9.5px] xs:text-[11px] sm:text-[0.9rem] font-extrabold truncate drop-shadow-sm text-white">{idCard.studentId}</div>
                       </div>
                       <div>
-                        <div className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-white/70 drop-shadow-sm">Expiry</div>
-                        <div className="text-[12px] sm:text-[14px] font-semibold drop-shadow-sm text-white/95">{idCard.expiryDate?.toDate().toLocaleDateString('en-GB', { month: '2-digit', year: '2-digit' })}</div>
+                        <div className="text-[7px] xs:text-[8px] sm:text-[10px] font-bold uppercase tracking-widest text-white/70 drop-shadow-sm">Expiry</div>
+                        <div className="text-[9.5px] xs:text-[11px] sm:text-[0.9rem] font-bold drop-shadow-sm text-white/95">{idCard.expiryDate?.toDate().toLocaleDateString('en-GB', { month: '2-digit', year: '2-digit' })}</div>
                       </div>
                     </div>
                   </div>
