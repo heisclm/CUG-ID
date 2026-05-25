@@ -556,7 +556,23 @@ export default function SecurityScanner() {
                           <div className="space-y-1">
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Expiry</p>
                             <p className="text-xs font-bold text-gray-700 dark:text-gray-300 text-right">
-                              {studentDetails.expiryDate?.toDate ? studentDetails.expiryDate.toDate().toLocaleDateString() : studentDetails.expiryDate}
+                              {(() => {
+                                const exp = studentDetails.expiryDate;
+                                if (!exp) return 'N/A';
+                                if (typeof exp.toDate === 'function') {
+                                  return exp.toDate().toLocaleDateString();
+                                }
+                                if (exp._seconds !== undefined) {
+                                  return new Date(exp._seconds * 1000).toLocaleDateString();
+                                }
+                                if (exp.seconds !== undefined) {
+                                  return new Date(exp.seconds * 1000).toLocaleDateString();
+                                }
+                                if (typeof exp === 'string') {
+                                  return new Date(exp).toLocaleDateString();
+                                }
+                                return 'N/A';
+                              })()}
                             </p>
                           </div>
                         </div>
