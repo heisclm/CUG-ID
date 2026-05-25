@@ -413,7 +413,7 @@ export default function ApplyForm() {
                     <div className="relative flex-1 group">
                       <input
                         {...register('studentId')}
-                        placeholder="e.g. CUG12345"
+                        placeholder="e.g. UGR0202210065"
                         readOnly={isValidated}
                         className={`w-full px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-2 border-transparent rounded-2xl text-base font-bold focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 transition-all dark:text-white placeholder:text-gray-400 ${isValidated ? 'opacity-70 cursor-not-allowed bg-gray-100 dark:bg-gray-800' : 'group-hover:bg-gray-100 dark:group-hover:bg-gray-800/80'}`}
                       />
