@@ -320,7 +320,7 @@ export default function StudentDashboard() {
 
       // 1. Hook window.getComputedStyle to intercept modern colors returned dynamically by the browser
       originalGetComputedStyle = window.getComputedStyle;
-      window.getComputedStyle = function (elt: Element, pseudoElt?: string) {
+      window.getComputedStyle = function (elt: Element, pseudoElt?: string | null): CSSStyleDeclaration {
         const style = originalGetComputedStyle.call(this, elt, pseudoElt);
         return new Proxy(style, {
           get(target, prop, receiver) {
@@ -336,7 +336,7 @@ export default function StudentDashboard() {
             }
             return val;
           }
-        });
+        }) as any;
       };
 
       // 2. Intercept document.styleSheets to proxy cssRules and clean rules containing oklch or oklab
@@ -361,10 +361,10 @@ export default function StudentDashboard() {
               const ruleProxy = new Proxy(rule, {
                 get(target, prop, receiver) {
                   if (prop === 'cssText') {
-                    return cleanModernColors(target.cssText);
+                    return cleanModernColors((target as any).cssText);
                   }
                   if (prop === 'style') {
-                    const styleObj = target.style;
+                    const styleObj = (target as any).style;
                     if (styleObj) {
                       return new Proxy(styleObj, {
                         get(tStyle, pStyle, rStyle) {
@@ -698,12 +698,12 @@ export default function StudentDashboard() {
                       <div className="text-[7px] xs:text-[8px] sm:text-[10px] font-bold uppercase tracking-widest text-white/70 drop-shadow-sm">Department</div>
                       <div className="text-[9px] xs:text-[10.5px] sm:text-[0.9rem] font-bold truncate drop-shadow-sm text-white/95">{idCard.department || 'N/A'}</div>
                     </div>
-                    <div className="grid grid-cols-[1.48fr_1fr] gap-3 xs:gap-4 sm:gap-6">
-                      <div>
+                    <div className="flex gap-5 xs:gap-8 sm:gap-12">
+                      <div className="min-w-0 flex-1">
                         <div className="text-[7px] xs:text-[8px] sm:text-[10px] font-bold uppercase tracking-widest text-white/70 drop-shadow-sm">Student ID</div>
                         <div className="text-[9.5px] xs:text-[11px] sm:text-[0.9rem] font-extrabold truncate drop-shadow-sm text-white">{idCard.studentId}</div>
                       </div>
-                      <div>
+                      <div className="shrink-0">
                         <div className="text-[7px] xs:text-[8px] sm:text-[10px] font-bold uppercase tracking-widest text-white/70 drop-shadow-sm">Expiry</div>
                         <div className="text-[9.5px] xs:text-[11px] sm:text-[0.9rem] font-bold drop-shadow-sm text-white/95">{idCard.expiryDate?.toDate().toLocaleDateString('en-GB', { month: '2-digit', year: '2-digit' })}</div>
                       </div>
