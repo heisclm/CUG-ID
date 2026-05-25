@@ -335,41 +335,60 @@ export default function StudentDashboard() {
           {idCard ? (
             <div 
               id="id-card-element" 
-              className="relative aspect-[1.6/1] w-full max-w-md mx-auto rounded-[2rem] p-6 sm:p-8 text-white overflow-hidden group"
+              className="relative aspect-[1.586/1] w-full max-w-[460px] mx-auto rounded-3xl p-6 sm:p-7 text-white overflow-hidden group shadow-2xl"
               style={{ 
-                background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
-                boxShadow: '0 25px 50px -12px rgba(249, 115, 22, 0.3)'
+                background: 'linear-gradient(135deg, #fb923c 0%, #f97316 40%, #ea580c 100%)',
               }}
             >
+              {/* Subtle noise texture */}
+              <div 
+                className="absolute inset-0 opacity-15 pointer-events-none mix-blend-overlay"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+                }}
+              />
+              
+              {/* Glassmorphic light blooms */}
+              <div className="absolute top-0 right-0 w-[200%] h-[200%] bg-gradient-to-bl from-white/30 via-transparent to-transparent opacity-40 mix-blend-overlay pointer-events-none -translate-y-1/2 translate-x-1/4 transform rotate-12" />
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-black/10 blur-3xl rounded-full mix-blend-multiply pointer-events-none -ml-20 -mb-20" />
+
               {idCard.isFinalYear && (
-                <div className="absolute top-4 right-4 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                <div className="absolute top-5 right-5 bg-black/20 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1.5 rounded-full border border-white/20 z-20 shadow-sm">
                   FINAL YEAR
                 </div>
               )}
-              <div 
-                className="absolute top-0 right-0 w-48 sm:w-64 h-48 sm:h-64 rounded-full -mr-24 sm:-mr-32 -mt-24 sm:-mt-32 blur-3xl group-hover:opacity-40 transition-all duration-500" 
-                style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
-              />
+              
               <div className="relative z-10 h-full flex flex-col justify-between">
+                {/* Header */}
                 <div className="flex justify-between items-start">
-                  <div className="space-y-1">
-                    <div className="text-[8px] sm:text-[10px] font-bold uppercase tracking-widest opacity-80">Catholic University of Ghana</div>
-                    <div className="text-base sm:text-lg font-black tracking-tight">STUDENT ID</div>
-                  </div>
-                  <div 
-                    className="w-10 h-10 sm:w-12 sm:h-12 backdrop-blur-md rounded-xl flex items-center justify-center"
-                    style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }}
-                  >
-                    <GraduationCap size={20} className="sm:w-6 sm:h-6" />
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-12 h-12 flex-shrink-0 bg-white shadow-sm rounded-[10px] p-0.5 overflow-hidden flex items-center justify-center">
+                       {/* Mix blend multiply removes the white background making it blend with the orange! */}
+                      <Image 
+                         src="/cug-logo.jpg" 
+                         alt="CUG Logo" 
+                         fill
+                         className="object-cover mix-blend-multiply" 
+                      />
+                    </div>
+                    <div className="space-y-0.5 mt-0.5">
+                      <div className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-widest text-white/90 drop-shadow-sm">Catholic University of Ghana</div>
+                      <div className="text-xl sm:text-2xl font-bold tracking-tight text-white drop-shadow-md">STUDENT ID</div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex gap-4 sm:gap-6 items-end">
+                {/* Body section */}
+                <div className="flex gap-5 sm:gap-6 items-end mt-4">
+                  {/* Photo area */}
                   <div 
-                    className="relative w-20 h-28 sm:w-24 sm:h-32 backdrop-blur-md rounded-2xl border flex items-center justify-center overflow-hidden shrink-0"
+                    className="relative w-24 h-32 sm:w-28 sm:h-[140px] rounded-[18px] flex items-center justify-center overflow-hidden shrink-0 shadow-lg isolate"
                     style={{ 
-                      backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                      borderColor: 'rgba(255, 255, 255, 0.3)'
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                      boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)',
+                      backdropFilter: 'blur(12px)',
+                      WebkitBackdropFilter: 'blur(12px)',
+                      border: '1.5px solid rgba(255, 255, 255, 0.25)'
                     }}
                   >
                     {idCard.photoUrl ? (
@@ -379,28 +398,31 @@ export default function StudentDashboard() {
                         fill
                         className="object-cover"
                         referrerPolicy="no-referrer"
+                        crossOrigin="anonymous"
                       />
                     ) : (
-                      <div className="text-white/40"><UserCircle size={40} className="sm:w-12 sm:h-12" /></div>
+                      <div className="text-white/40"><UserCircle size={48} className="sm:w-16 sm:h-16" /></div>
                     )}
                   </div>
-                  <div className="flex-1 space-y-1 sm:space-y-2 min-w-0">
+                  
+                  {/* Details area */}
+                  <div className="flex-1 space-y-3 sm:space-y-3.5 min-w-0 pb-1">
                     <div>
-                      <div className="text-[8px] sm:text-[10px] font-bold uppercase opacity-60">Full Name</div>
-                      <div className="text-sm sm:text-lg font-bold leading-tight truncate">{idCard.fullName}</div>
+                      <div className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-white/70 drop-shadow-sm">Full Name</div>
+                      <div className="text-[15px] sm:text-lg font-bold leading-tight truncate drop-shadow-sm">{idCard.fullName}</div>
                     </div>
                     <div>
-                      <div className="text-[8px] sm:text-[10px] font-bold uppercase opacity-60">Department</div>
-                      <div className="text-xs sm:text-sm font-bold truncate">{idCard.department || 'N/A'}</div>
+                      <div className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-white/70 drop-shadow-sm">Department</div>
+                      <div className="text-[13px] sm:text-[14px] font-semibold truncate drop-shadow-sm text-white/95">{idCard.department || 'N/A'}</div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 sm:gap-4">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
                       <div>
-                        <div className="text-[8px] sm:text-[10px] font-bold uppercase opacity-60">Student ID</div>
-                        <div className="text-xs sm:text-sm font-bold truncate">{idCard.studentId}</div>
+                        <div className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-white/70 drop-shadow-sm">Student ID</div>
+                        <div className="text-[13px] sm:text-[14px] font-semibold truncate drop-shadow-sm text-white/95">{idCard.studentId}</div>
                       </div>
                       <div>
-                        <div className="text-[8px] sm:text-[10px] font-bold uppercase opacity-60">Expiry</div>
-                        <div className="text-xs sm:text-sm font-bold">{idCard.expiryDate?.toDate().toLocaleDateString('en-GB', { month: '2-digit', year: '2-digit' })}</div>
+                        <div className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-white/70 drop-shadow-sm">Expiry</div>
+                        <div className="text-[13px] sm:text-[14px] font-semibold drop-shadow-sm text-white/95">{idCard.expiryDate?.toDate().toLocaleDateString('en-GB', { month: '2-digit', year: '2-digit' })}</div>
                       </div>
                     </div>
                   </div>
