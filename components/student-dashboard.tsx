@@ -293,7 +293,7 @@ export default function StudentDashboard() {
 
     setIsDownloading(true);
     let portal: HTMLDivElement | null = null;
-    const activeStylesBackup: Array<{ el: Element; originalValue: any }> = [];
+    const detachedStyles: Array<{ el: Element; parent: ParentNode; nextSibling: ChildNode | null }> = [];
     let tempStyleBlock: HTMLStyleElement | null = null;
     
     try {
@@ -350,13 +350,6 @@ export default function StudentDashboard() {
           if (styleEl.tagName === 'STYLE') {
             const css = styleEl.textContent || '';
             consolidatedCSSText += '\n' + css;
-            
-            // Backup and disable
-            activeStylesBackup.push({
-              el: styleEl,
-              originalValue: (styleEl as any).disabled
-            });
-            (styleEl as any).disabled = true;
           } else if (styleEl.tagName === 'LINK') {
             const sheet = (styleEl as any).sheet;
             if (sheet) {
@@ -368,26 +361,32 @@ export default function StudentDashboard() {
                 // Ignore CORS sheets or sheets we can't read rules from.
               }
             }
-            
-            activeStylesBackup.push({
-              el: styleEl,
-              originalValue: (styleEl as any).disabled
-            });
-            (styleEl as any).disabled = true;
           }
         } catch (err) {
           console.warn('Error processing style element:', err);
         }
       }
 
-      // Add a cleaned consolidated style block
+      // Detach all style elements from DOM to cleanly clear document.styleSheets
+      for (const styleEl of styleElements) {
+        if (styleEl.parentNode) {
+          detachedStyles.push({
+            el: styleEl,
+            parent: styleEl.parentNode,
+            nextSibling: styleEl.nextSibling
+          });
+          styleEl.parentNode.removeChild(styleEl);
+        }
+      }
+
+      // Add a cleaned consolidated style block (this is the ONLY active stylesheet now)
       const cleanedCSS = cleanModernColors(consolidatedCSSText);
       tempStyleBlock = document.createElement('style');
       tempStyleBlock.id = 'temp-cleaned-html2canvas-styles';
       tempStyleBlock.textContent = cleanedCSS;
       document.head.appendChild(tempStyleBlock);
 
-      // 3. Render the card to canvas with html2canvas
+      // 3. Render the card to canvas with html2canvas (now free of oklab/oklch rules!)
       const canvas = await html2canvas(clone, {
         scale: 2.5, // Ultra sharp high resolution
         useCORS: true, 
@@ -400,12 +399,16 @@ export default function StudentDashboard() {
         tempStyleBlock.parentNode.removeChild(tempStyleBlock);
         tempStyleBlock = null;
       }
-      for (const backup of activeStylesBackup) {
+      for (const item of detachedStyles) {
         try {
-          (backup.el as any).disabled = backup.originalValue;
-        } catch (e) {}
+          item.parent.insertBefore(item.el, item.nextSibling);
+        } catch (e) {
+          try {
+            item.parent.appendChild(item.el);
+          } catch (err) {}
+        }
       }
-      activeStylesBackup.length = 0;
+      detachedStyles.length = 0;
 
       // Cleanup portal DOM
       if (portal) {
@@ -433,11 +436,15 @@ export default function StudentDashboard() {
           tempStyleBlock.parentNode.removeChild(tempStyleBlock);
         } catch (err) {}
       }
-      if (activeStylesBackup && activeStylesBackup.length > 0) {
-        for (const backup of activeStylesBackup) {
+      if (detachedStyles && detachedStyles.length > 0) {
+        for (const item of detachedStyles) {
           try {
-            (backup.el as any).disabled = backup.originalValue;
-          } catch (e) {}
+            item.parent.insertBefore(item.el, item.nextSibling);
+          } catch (e) {
+            try {
+              item.parent.appendChild(item.el);
+            } catch (err) {}
+          }
         }
       }
       if (portal) {
