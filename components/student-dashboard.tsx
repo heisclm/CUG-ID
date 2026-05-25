@@ -64,10 +64,17 @@ const useCurrentTime = () => {
 export default function StudentDashboard() {
   const { profile, idCard } = useAuth();
   const [latestApp, setLatestApp] = useState<any>(null);
+  const [schoolLogoUrl, setSchoolLogoUrl] = useState('/cug-logo.jpg');
   const currentTime = useCurrentTime();
   
   useEffect(() => {
-    if (!profile?.uid) return;
+    const unsubParams = onSnapshot(doc(db, 'settings', 'general'), (doc) => {
+      if (doc.exists() && doc.data().schoolLogoUrl) {
+        setSchoolLogoUrl(doc.data().schoolLogoUrl);
+      }
+    });
+
+    if (!profile?.uid) return unsubParams;
     const q = query(
       collection(db, 'applications'), 
       where('studentUid', '==', profile.uid)
@@ -335,7 +342,7 @@ export default function StudentDashboard() {
           {idCard ? (
             <div 
               id="id-card-element" 
-              className="relative aspect-[1.586/1] w-full max-w-[460px] mx-auto rounded-3xl p-6 sm:p-7 text-white overflow-hidden group shadow-2xl"
+              className="relative aspect-auto sm:aspect-[1.586/1] w-full max-w-[460px] mx-auto rounded-3xl p-5 sm:p-7 text-white overflow-hidden group shadow-2xl min-h-[240px] sm:min-h-0"
               style={{ 
                 background: 'linear-gradient(135deg, #fb923c 0%, #f97316 40%, #ea580c 100%)',
               }}
@@ -353,7 +360,7 @@ export default function StudentDashboard() {
               <div className="absolute bottom-0 left-0 w-64 h-64 bg-black/10 blur-3xl rounded-full mix-blend-multiply pointer-events-none -ml-20 -mb-20" />
 
               {idCard.isFinalYear && (
-                <div className="absolute top-5 right-5 bg-black/20 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1.5 rounded-full border border-white/20 z-20 shadow-sm">
+                <div className="absolute top-4 sm:top-5 right-4 sm:right-5 bg-black/20 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1.5 rounded-full border border-white/20 z-20 shadow-sm">
                   FINAL YEAR
                 </div>
               )}
@@ -362,27 +369,27 @@ export default function StudentDashboard() {
                 {/* Header */}
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-3">
-                    <div className="relative w-12 h-12 flex-shrink-0 bg-white shadow-sm rounded-[10px] p-0.5 overflow-hidden flex items-center justify-center">
+                    <div className="relative w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 bg-white shadow-sm rounded-[10px] p-1 overflow-hidden flex items-center justify-center">
                        {/* Mix blend multiply removes the white background making it blend with the orange! */}
                       <Image 
-                         src="/cug-logo.jpg" 
-                         alt="CUG Logo" 
+                         src={schoolLogoUrl} 
+                         alt="School Logo" 
                          fill
-                         className="object-cover mix-blend-multiply" 
+                         className="object-contain" 
                       />
                     </div>
-                    <div className="space-y-0.5 mt-0.5">
-                      <div className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-widest text-white/90 drop-shadow-sm">Catholic University of Ghana</div>
-                      <div className="text-xl sm:text-2xl font-bold tracking-tight text-white drop-shadow-md">STUDENT ID</div>
+                    <div className="space-y-0.5 mt-0.5 pr-14 sm:pr-0">
+                      <div className="text-[8px] sm:text-[10px] font-semibold uppercase tracking-widest text-white/90 drop-shadow-sm leading-tight">Catholic University of Ghana</div>
+                      <div className="text-lg sm:text-2xl font-bold tracking-tight text-white drop-shadow-md leading-none mt-1">STUDENT ID</div>
                     </div>
                   </div>
                 </div>
 
                 {/* Body section */}
-                <div className="flex gap-5 sm:gap-6 items-end mt-4">
+                <div className="flex gap-4 sm:gap-6 items-end mt-6 sm:mt-4">
                   {/* Photo area */}
                   <div 
-                    className="relative w-24 h-32 sm:w-28 sm:h-[140px] rounded-[18px] flex items-center justify-center overflow-hidden shrink-0 shadow-lg isolate"
+                    className="relative w-24 h-32 sm:w-28 sm:h-[140px] rounded-[14px] sm:rounded-[18px] flex items-center justify-center overflow-hidden shrink-0 shadow-lg isolate"
                     style={{ 
                       backgroundColor: 'rgba(255, 255, 255, 0.1)',
                       boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)',
@@ -401,28 +408,28 @@ export default function StudentDashboard() {
                         crossOrigin="anonymous"
                       />
                     ) : (
-                      <div className="text-white/40"><UserCircle size={48} className="sm:w-16 sm:h-16" /></div>
+                      <div className="text-white/40"><UserCircle size={40} className="sm:w-16 sm:h-16" /></div>
                     )}
                   </div>
                   
                   {/* Details area */}
-                  <div className="flex-1 space-y-3 sm:space-y-3.5 min-w-0 pb-1">
+                  <div className="flex-1 space-y-2 sm:space-y-3.5 min-w-0 pb-1">
                     <div>
                       <div className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-white/70 drop-shadow-sm">Full Name</div>
-                      <div className="text-[15px] sm:text-lg font-bold leading-tight truncate drop-shadow-sm">{idCard.fullName}</div>
+                      <div className="text-[14px] sm:text-lg font-bold leading-tight truncate drop-shadow-sm">{idCard.fullName}</div>
                     </div>
                     <div>
                       <div className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-white/70 drop-shadow-sm">Department</div>
-                      <div className="text-[13px] sm:text-[14px] font-semibold truncate drop-shadow-sm text-white/95">{idCard.department || 'N/A'}</div>
+                      <div className="text-[12px] sm:text-[14px] font-semibold truncate drop-shadow-sm text-white/95">{idCard.department || 'N/A'}</div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                    <div className="grid grid-cols-2 gap-2 sm:gap-4">
                       <div>
                         <div className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-white/70 drop-shadow-sm">Student ID</div>
-                        <div className="text-[13px] sm:text-[14px] font-semibold truncate drop-shadow-sm text-white/95">{idCard.studentId}</div>
+                        <div className="text-[12px] sm:text-[14px] font-semibold truncate drop-shadow-sm text-white/95">{idCard.studentId}</div>
                       </div>
                       <div>
                         <div className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-white/70 drop-shadow-sm">Expiry</div>
-                        <div className="text-[13px] sm:text-[14px] font-semibold drop-shadow-sm text-white/95">{idCard.expiryDate?.toDate().toLocaleDateString('en-GB', { month: '2-digit', year: '2-digit' })}</div>
+                        <div className="text-[12px] sm:text-[14px] font-semibold drop-shadow-sm text-white/95">{idCard.expiryDate?.toDate().toLocaleDateString('en-GB', { month: '2-digit', year: '2-digit' })}</div>
                       </div>
                     </div>
                   </div>
