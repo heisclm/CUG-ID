@@ -54,10 +54,10 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) 
 
       {/* Sidebar */}
       <div className={cn(
-        "fixed left-0 top-0 z-50 h-screen w-64 bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 flex flex-col p-6 transition-transform duration-300 lg:translate-x-0",
+        "fixed left-0 top-0 z-50 h-[100dvh] w-64 bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 flex flex-col p-6 transition-transform duration-300 lg:translate-x-0",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="flex items-center justify-between mb-10 px-2">
+        <div className="flex items-center justify-between mb-8 px-2 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-orange-500/20">
               <GraduationCap size={24} />
@@ -69,7 +69,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) 
           </button>
         </div>
 
-        <nav className="flex-1 space-y-2">
+        <nav className="flex-1 overflow-y-auto -mx-2 px-2 space-y-2 py-2">
           <div className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4 px-2">Menu</div>
           {filteredItems.map((item) => (
             <Link
@@ -95,7 +95,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) 
           ))}
         </nav>
 
-        <div className="mt-auto pt-6 border-t border-gray-100 dark:border-gray-800 space-y-4">
+        <div className="mt-auto pt-6 border-t border-gray-100 dark:border-gray-800 shrink-0">
           <button
             onClick={() => logout()}
             className="flex items-center gap-3 px-4 py-3 w-full text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all duration-200"
