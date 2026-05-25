@@ -323,16 +323,19 @@ export default function StudentDashboard() {
       window.getComputedStyle = function (elt: Element, pseudoElt?: string | null): CSSStyleDeclaration {
         const style = originalGetComputedStyle.call(this, elt, pseudoElt);
         return new Proxy(style, {
-          get(target, prop, receiver) {
-            const val = Reflect.get(target, prop, receiver);
-            if (typeof val === 'string') {
-              return cleanModernColors(val);
-            }
-            if (typeof val === 'function' && prop === 'getPropertyValue') {
+          get(target, prop) {
+            if (prop === 'getPropertyValue') {
               return function (property: string) {
                 const originalVal = target.getPropertyValue(property);
                 return cleanModernColors(originalVal);
               };
+            }
+            const val = (target as any)[prop];
+            if (typeof val === 'function') {
+              return val.bind(target);
+            }
+            if (typeof val === 'string') {
+              return cleanModernColors(val);
             }
             return val;
           }
@@ -359,7 +362,7 @@ export default function StudentDashboard() {
             for (let j = 0; j < originalRules.length; j++) {
               const rule = originalRules[j];
               const ruleProxy = new Proxy(rule, {
-                get(target, prop, receiver) {
+                get(target, prop) {
                   if (prop === 'cssText') {
                     return cleanModernColors((target as any).cssText);
                   }
@@ -367,22 +370,29 @@ export default function StudentDashboard() {
                     const styleObj = (target as any).style;
                     if (styleObj) {
                       return new Proxy(styleObj, {
-                        get(tStyle, pStyle, rStyle) {
-                          const val = Reflect.get(tStyle, pStyle, rStyle);
-                          if (typeof val === 'string') {
-                            return cleanModernColors(val);
-                          }
+                        get(tStyle, pStyle) {
                           if (pStyle === 'getPropertyValue') {
                             return (property: string) => {
                               return cleanModernColors(tStyle.getPropertyValue(property));
                             };
+                          }
+                          const val = (tStyle as any)[pStyle];
+                          if (typeof val === 'function') {
+                            return val.bind(tStyle);
+                          }
+                          if (typeof val === 'string') {
+                            return cleanModernColors(val);
                           }
                           return val;
                         }
                       });
                     }
                   }
-                  return Reflect.get(target, prop, receiver);
+                  const val = (target as any)[prop];
+                  if (typeof val === 'function') {
+                    return val.bind(target);
+                  }
+                  return val;
                 }
               });
               patchedRules.push(ruleProxy);
@@ -390,7 +400,7 @@ export default function StudentDashboard() {
             
             // Create an array-like proxy for CSSRuleList
             const rulesProxyList = new Proxy(patchedRules, {
-              get(target, prop, receiver) {
+              get(target, prop) {
                 if (prop === 'item') {
                   return (idx: number) => target[idx];
                 }
@@ -400,16 +410,24 @@ export default function StudentDashboard() {
                 if (typeof prop === 'string' && !isNaN(Number(prop))) {
                   return target[Number(prop)];
                 }
-                return Reflect.get(target, prop, receiver);
+                const val = (target as any)[prop];
+                if (typeof val === 'function') {
+                  return val.bind(target);
+                }
+                return val;
               }
             });
             
             const sheetProxy = new Proxy(sheet, {
-              get(target, prop, receiver) {
+              get(target, prop) {
                 if (prop === 'cssRules') {
                   return rulesProxyList;
                 }
-                return Reflect.get(target, prop, receiver);
+                const val = (target as any)[prop];
+                if (typeof val === 'function') {
+                  return val.bind(target);
+                }
+                return val;
               }
             });
             safeStyleSheets.push(sheetProxy);
@@ -418,11 +436,15 @@ export default function StudentDashboard() {
             // we proxy it as an empty sheet to make sure HTML2Canvas doesn't attempt to process it 
             // and trigger browser CORS/security errors
             const sheetProxy = new Proxy(sheet, {
-              get(target, prop, receiver) {
+              get(target, prop) {
                 if (prop === 'cssRules') {
                   return [];
                 }
-                return Reflect.get(target, prop, receiver);
+                const val = (target as any)[prop];
+                if (typeof val === 'function') {
+                  return val.bind(target);
+                }
+                return val;
               }
             });
             safeStyleSheets.push(sheetProxy);
