@@ -231,47 +231,70 @@ export default function StudentDashboard() {
   const [isDownloading, setIsDownloading] = useState(false);
 
   // Helper to convert modern CSS colors (oklch, oklab) to standard RGB/Hex values that html2canvas supports
-  const cleanModernColors = (cssVal: string): string => {
+  const cleanModernColors = React.useCallback((cssVal: string): string => {
     if (!cssVal) return cssVal;
     if (typeof cssVal !== 'string') return cssVal;
     if (!cssVal.includes('oklch(') && !cssVal.includes('oklab(')) {
       return cssVal;
     }
-    
-    // Replace oklch/oklab functions with resolved RGB/Hex using the browser's native canvas renderer
+
+    // Lazy load canvas to avoid SSR issues or slow initialization
+    let canvas: any = null;
+    let ctx: any = null;
+    if (typeof document !== 'undefined') {
+      canvas = document.createElement('canvas');
+      canvas.width = 1;
+      canvas.height = 1;
+      ctx = canvas.getContext('2d');
+    }
+
+    const cache = (cleanModernColors as any)._cache || new Map<string, string>();
+    (cleanModernColors as any)._cache = cache;
+
     return cssVal.replace(/(oklch|oklab)\([^)]+\)/g, (match) => {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = 1;
-        canvas.height = 1;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
+      if (cache.has(match)) {
+        return cache.get(match)!;
+      }
+      
+      let resolved = '';
+      if (ctx) {
+        try {
           ctx.fillStyle = match;
-          const resolved = ctx.fillStyle;
-          // Canvas will normalize any valid color function to standard format (rgb or hex)
-          if (resolved && resolved !== '#000000' && resolved !== 'rgba(0,0,0,0)') {
-            return resolved;
-          }
+          resolved = ctx.fillStyle;
+        } catch (e) {
+          // Safe canvas fallback
         }
-      } catch (e) {
-        // Safe canvas fallback
+      }
+      
+      if (resolved && resolved !== '#000000' && resolved !== 'rgba(0,0,0,0)' && resolved !== 'rgba(0, 0, 0, 0)') {
+        cache.set(match, resolved);
+        return resolved;
       }
       
       // Smart theme fallbacks for orange branding and black/white colors
-      if (match.includes('white') || match.includes('100%') || match.includes('1 0')) return '#ffffff';
-      if (match.includes('0 0 0')) return '#000000';
-      return '#f97316'; // Catholic University orange branding color
+      const lower = match.toLowerCase();
+      let fallback = '#f97316'; // Catholic University orange branding color
+      if (lower.includes('white') || lower.includes('100%') || lower.includes('1 0') || lower.includes('0.99') || lower.includes(' 1 ') || lower.includes('/ 1)')) {
+        fallback = '#ffffff';
+      } else if (lower.includes('black') || lower.includes('0%') || lower.includes('0 0 0')) {
+        fallback = '#000000';
+      } else if (lower.includes('slate') || lower.includes('gray') || lower.includes('grey') || lower.includes('0.2') || lower.includes('0.1')) {
+        fallback = '#475569';
+      }
+      
+      cache.set(match, fallback);
+      return fallback;
     });
-  };
+  }, []);
 
   const downloadPDF = async () => {
     const input = document.getElementById('id-card-element');
     if (!input) return;
 
     setIsDownloading(true);
-    let originalGetComputedStyle: any = null;
-    let sheetsPatched = false;
     let portal: HTMLDivElement | null = null;
+    const activeStylesBackup: Array<{ el: Element; originalValue: any }> = [];
+    let tempStyleBlock: HTMLStyleElement | null = null;
     
     try {
       // Create a temporary container for full-size desktop rendering
@@ -318,148 +341,51 @@ export default function StudentDashboard() {
 
       portal.appendChild(clone);
 
-      // 1. Hook window.getComputedStyle to intercept modern colors returned dynamically by the browser
-      originalGetComputedStyle = window.getComputedStyle;
-      window.getComputedStyle = function (elt: Element, pseudoElt?: string | null): CSSStyleDeclaration {
-        const style = originalGetComputedStyle.call(this, elt, pseudoElt);
-        return new Proxy(style, {
-          get(target, prop) {
-            if (prop === 'getPropertyValue') {
-              return function (property: string) {
-                const originalVal = target.getPropertyValue(property);
-                return cleanModernColors(originalVal);
-              };
-            }
-            const val = (target as any)[prop];
-            if (typeof val === 'function') {
-              return val.bind(target);
-            }
-            if (typeof val === 'string') {
-              return cleanModernColors(val);
-            }
-            return val;
-          }
-        }) as any;
-      };
+      // Extract, clean, and consolidate all styles into a single temp stylesheet
+      const styleElements = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'));
+      let consolidatedCSSText = '';
 
-      // 2. Intercept document.styleSheets to proxy cssRules and clean rules containing oklch or oklab
-      try {
-        const originalStyleSheets = document.styleSheets;
-        const safeStyleSheets: any[] = [];
-        
-        for (let i = 0; i < originalStyleSheets.length; i++) {
-          const sheet = originalStyleSheets[i];
-          try {
-            // If we can't read cssRules (cross-origin sheet), proxy it safely as empty to avoid throwing
-            if (!sheet.cssRules) {
-              safeStyleSheets.push(sheet);
-              continue;
+      for (const styleEl of styleElements) {
+        try {
+          if (styleEl.tagName === 'STYLE') {
+            const css = styleEl.textContent || '';
+            consolidatedCSSText += '\n' + css;
+            
+            // Backup and disable
+            activeStylesBackup.push({
+              el: styleEl,
+              originalValue: (styleEl as any).disabled
+            });
+            (styleEl as any).disabled = true;
+          } else if (styleEl.tagName === 'LINK') {
+            const sheet = (styleEl as any).sheet;
+            if (sheet) {
+              try {
+                const rules = Array.from(sheet.cssRules || []);
+                const css = rules.map((r: any) => r.cssText).join('\n');
+                consolidatedCSSText += '\n' + css;
+              } catch (e) {
+                // Ignore CORS sheets or sheets we can't read rules from.
+              }
             }
             
-            const originalRules = sheet.cssRules;
-            const patchedRules: any[] = [];
-            
-            for (let j = 0; j < originalRules.length; j++) {
-              const rule = originalRules[j];
-              const ruleProxy = new Proxy(rule, {
-                get(target, prop) {
-                  if (prop === 'cssText') {
-                    return cleanModernColors((target as any).cssText);
-                  }
-                  if (prop === 'style') {
-                    const styleObj = (target as any).style;
-                    if (styleObj) {
-                      return new Proxy(styleObj, {
-                        get(tStyle, pStyle) {
-                          if (pStyle === 'getPropertyValue') {
-                            return (property: string) => {
-                              return cleanModernColors(tStyle.getPropertyValue(property));
-                            };
-                          }
-                          const val = (tStyle as any)[pStyle];
-                          if (typeof val === 'function') {
-                            return val.bind(tStyle);
-                          }
-                          if (typeof val === 'string') {
-                            return cleanModernColors(val);
-                          }
-                          return val;
-                        }
-                      });
-                    }
-                  }
-                  const val = (target as any)[prop];
-                  if (typeof val === 'function') {
-                    return val.bind(target);
-                  }
-                  return val;
-                }
-              });
-              patchedRules.push(ruleProxy);
-            }
-            
-            // Create an array-like proxy for CSSRuleList
-            const rulesProxyList = new Proxy(patchedRules, {
-              get(target, prop) {
-                if (prop === 'item') {
-                  return (idx: number) => target[idx];
-                }
-                if (prop === 'length') {
-                  return target.length;
-                }
-                if (typeof prop === 'string' && !isNaN(Number(prop))) {
-                  return target[Number(prop)];
-                }
-                const val = (target as any)[prop];
-                if (typeof val === 'function') {
-                  return val.bind(target);
-                }
-                return val;
-              }
+            activeStylesBackup.push({
+              el: styleEl,
+              originalValue: (styleEl as any).disabled
             });
-            
-            const sheetProxy = new Proxy(sheet, {
-              get(target, prop) {
-                if (prop === 'cssRules') {
-                  return rulesProxyList;
-                }
-                const val = (target as any)[prop];
-                if (typeof val === 'function') {
-                  return val.bind(target);
-                }
-                return val;
-              }
-            });
-            safeStyleSheets.push(sheetProxy);
-          } catch (e) {
-            // For cross-origin sheets that throw security exceptions when reading cssRules,
-            // we proxy it as an empty sheet to make sure HTML2Canvas doesn't attempt to process it 
-            // and trigger browser CORS/security errors
-            const sheetProxy = new Proxy(sheet, {
-              get(target, prop) {
-                if (prop === 'cssRules') {
-                  return [];
-                }
-                const val = (target as any)[prop];
-                if (typeof val === 'function') {
-                  return val.bind(target);
-                }
-                return val;
-              }
-            });
-            safeStyleSheets.push(sheetProxy);
+            (styleEl as any).disabled = true;
           }
+        } catch (err) {
+          console.warn('Error processing style element:', err);
         }
-
-        Object.defineProperty(document, 'styleSheets', {
-          value: safeStyleSheets,
-          configurable: true,
-          writable: true
-        });
-        sheetsPatched = true;
-      } catch (err) {
-        console.warn('Could not patch document.styleSheets for oklch support:', err);
       }
+
+      // Add a cleaned consolidated style block
+      const cleanedCSS = cleanModernColors(consolidatedCSSText);
+      tempStyleBlock = document.createElement('style');
+      tempStyleBlock.id = 'temp-cleaned-html2canvas-styles';
+      tempStyleBlock.textContent = cleanedCSS;
+      document.head.appendChild(tempStyleBlock);
 
       // 3. Render the card to canvas with html2canvas
       const canvas = await html2canvas(clone, {
@@ -469,21 +395,17 @@ export default function StudentDashboard() {
         backgroundColor: null,
       });
 
-      // Restore styleSheets immediately after html2canvas completes style parsing
-      if (sheetsPatched) {
+      // Restore all original stylesheets and delete the temp block immediately
+      if (tempStyleBlock && tempStyleBlock.parentNode) {
+        tempStyleBlock.parentNode.removeChild(tempStyleBlock);
+        tempStyleBlock = null;
+      }
+      for (const backup of activeStylesBackup) {
         try {
-          delete (document as any).styleSheets;
-          sheetsPatched = false;
-        } catch (err) {
-          console.error('Failed to restore document.styleSheets:', err);
-        }
+          (backup.el as any).disabled = backup.originalValue;
+        } catch (e) {}
       }
-
-      // Restore window.getComputedStyle immediately
-      if (originalGetComputedStyle) {
-        window.getComputedStyle = originalGetComputedStyle;
-        originalGetComputedStyle = null;
-      }
+      activeStylesBackup.length = 0;
 
       // Cleanup portal DOM
       if (portal) {
@@ -506,13 +428,17 @@ export default function StudentDashboard() {
       alert('Failed to generate PDF. Please try again.');
     } finally {
       // Emergency cleanups in case anything fails during the process
-      if (sheetsPatched) {
+      if (tempStyleBlock && tempStyleBlock.parentNode) {
         try {
-          delete (document as any).styleSheets;
+          tempStyleBlock.parentNode.removeChild(tempStyleBlock);
         } catch (err) {}
       }
-      if (originalGetComputedStyle) {
-        window.getComputedStyle = originalGetComputedStyle;
+      if (activeStylesBackup && activeStylesBackup.length > 0) {
+        for (const backup of activeStylesBackup) {
+          try {
+            (backup.el as any).disabled = backup.originalValue;
+          } catch (e) {}
+        }
       }
       if (portal) {
         try {
