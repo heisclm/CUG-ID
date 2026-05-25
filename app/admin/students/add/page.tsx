@@ -192,7 +192,7 @@ export default function AdminAddStudentPage() {
                         type="text" 
                         value={studentId}
                         onChange={(e) => setStudentId(e.target.value)}
-                        placeholder="e.g. CUG12345"
+                        placeholder="e.g. UGR0202210065"
                         className="w-full px-5 py-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-transparent focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 outline-none font-bold transition-all text-gray-900 dark:text-white uppercase placeholder:normal-case placeholder:font-medium"
                       />
                     </div>
@@ -202,7 +202,7 @@ export default function AdminAddStudentPage() {
                         type="text" 
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        placeholder="e.g. Oyekunle Clement"
+                        placeholder="e.g. Ama Nana"
                         className="w-full px-5 py-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-transparent focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 outline-none font-bold transition-all text-gray-900 dark:text-white placeholder:font-medium"
                       />
                     </div>

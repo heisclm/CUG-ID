@@ -265,12 +265,98 @@ export default function StudentDashboard() {
 
       portal.appendChild(clone);
 
-      const canvas = await html2canvas(clone, {
-        scale: 2.5, // Ultra sharp high resolution
-        useCORS: true, 
-        allowTaint: false, 
-        backgroundColor: null,
-      });
+      // Pro-level workaround for html2canvas parsing modern CSS color spaces (oklch, oklab)
+      // We temporarily intercept document.styleSheets and filter out rules containing unsupported colors.
+      let sheetsPatched = false;
+      try {
+        const originalStyleSheets = document.styleSheets;
+        const safeStyleSheets: any[] = [];
+        
+        for (let i = 0; i < originalStyleSheets.length; i++) {
+          const sheet = originalStyleSheets[i];
+          try {
+            if (!sheet.cssRules) {
+              safeStyleSheets.push(sheet);
+              continue;
+            }
+            
+            const originalRules = sheet.cssRules;
+            const filteredRules: any[] = [];
+            let hasUnsupported = false;
+            
+            for (let j = 0; j < originalRules.length; j++) {
+              const rule = originalRules[j];
+              const cssText = rule.cssText;
+              if (cssText.includes('oklch(') || cssText.includes('oklab(')) {
+                hasUnsupported = true;
+              } else {
+                filteredRules.push(rule);
+              }
+            }
+            
+            if (!hasUnsupported) {
+              safeStyleSheets.push(sheet);
+            } else {
+              // Create an array-like proxy for CSSRuleList to support index-based access, length, and .item()
+              const rulesProxyList = new Proxy(filteredRules, {
+                get(target, prop, receiver) {
+                  if (prop === 'item') {
+                    return (idx: number) => target[idx];
+                  }
+                  if (prop === 'length') {
+                    return target.length;
+                  }
+                  // Handle index numbers
+                  if (typeof prop === 'string' && !isNaN(Number(prop))) {
+                    return target[Number(prop)];
+                  }
+                  return Reflect.get(target, prop, receiver);
+                }
+              });
+              
+              const sheetProxy = new Proxy(sheet, {
+                get(target, prop, receiver) {
+                  if (prop === 'cssRules') {
+                    return rulesProxyList;
+                  }
+                  return Reflect.get(target, prop, receiver);
+                }
+              });
+              safeStyleSheets.push(sheetProxy);
+            }
+          } catch (e) {
+            safeStyleSheets.push(sheet);
+          }
+        }
+
+        Object.defineProperty(document, 'styleSheets', {
+          value: safeStyleSheets,
+          configurable: true,
+          writable: true
+        });
+        sheetsPatched = true;
+      } catch (err) {
+        console.warn('Could not patch document.styleSheets for oklch support:', err);
+      }
+
+      let canvas;
+      try {
+        canvas = await html2canvas(clone, {
+          scale: 2.5, // Ultra sharp high resolution
+          useCORS: true, 
+          allowTaint: false, 
+          backgroundColor: null,
+        });
+      } finally {
+        // Restore original styleSheets immediately after html2canvas completes parsing styles
+        if (sheetsPatched) {
+          try {
+            delete (document as any).styleSheets;
+          } catch (err) {
+            console.error('Failed to restore document.styleSheets:', err);
+          }
+        }
+      }
 
       // Cleanup
       document.body.removeChild(portal);
