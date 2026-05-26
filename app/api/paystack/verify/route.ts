@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { adminDb, FieldValue, Timestamp } from '@/lib/firebase-admin';
 import { generateIDPayload } from '@/lib/qr';
-import { calculateGraduationYear } from '@/lib/graduation';
+import { calculateGraduationYear, calculateIDExpiry } from '@/lib/graduation';
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || '';
 
@@ -63,8 +63,8 @@ export async function POST(req: Request) {
       }
 
       // Calculate Graduation Year
-      const graduationYear = calculateGraduationYear(studentData);
-      const calculatedExpiryDate = new Date(`${graduationYear}-12-31`);
+      const studentInfoForExpiry = { ...studentData, program: studentData?.program || appData?.program || '' };
+      const graduationYear = calculateGraduationYear(studentInfoForExpiry);
       const isFinalYear = graduationYear === new Date().getFullYear();
 
       // 1. Create Payment Record
@@ -85,9 +85,7 @@ export async function POST(req: Request) {
       });
 
       // 3. Generate ID Card
-      const issueDate = new Date();
-      // Use the calculated expiry date based on graduation year, or fallback to 1 year
-      const expiryDate = calculatedExpiryDate > issueDate ? calculatedExpiryDate : new Date(issueDate.getFullYear() + 1, issueDate.getMonth(), issueDate.getDate());
+      const expiryDate = calculateIDExpiry(studentInfoForExpiry);
 
       const qrPayload = generateIDPayload({
         uid: studentUid,

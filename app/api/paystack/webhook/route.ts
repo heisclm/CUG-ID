@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { adminDb, FieldValue, Timestamp } from '@/lib/firebase-admin';
 import QRCode from 'qrcode';
 import { generateIDPayload } from '@/lib/qr';
+import { calculateGraduationYear, calculateIDExpiry } from '@/lib/graduation';
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || '';
 
@@ -61,6 +62,10 @@ export async function POST(req: Request) {
           throw new Error(`Application ${applicationId} unauthorized access`);
         }
 
+        const studentRef = adminDb.collection('students').doc(studentId);
+        const studentDoc = await transaction.get(studentRef);
+        const studentData = studentDoc.exists ? studentDoc.data() : {};
+
         // 1. Create Payment Record
         console.log('Setting payment record...');
         transaction.set(paymentRef, {
@@ -82,16 +87,17 @@ export async function POST(req: Request) {
 
         // 3. Generate ID Card
         console.log('Generating ID card payload...');
-        const issueDate = new Date();
-        const expiryDate = new Date();
-        // Set expiry to 4 years from now to simulate graduation year
-        expiryDate.setFullYear(issueDate.getFullYear() + 4);
+        const studentInfoForExpiry = { ...studentData, program: studentData?.program || appData?.program || '' };
+        const graduationYear = calculateGraduationYear(studentInfoForExpiry);
+        const isFinalYear = graduationYear === new Date().getFullYear();
+        const expiryDate = calculateIDExpiry(studentInfoForExpiry);
 
         const qrPayload = generateIDPayload({
           uid: studentUid,
           studentId: studentId,
           fullName: appData?.fullName || 'N/A',
           expiryDate: expiryDate.toISOString(),
+          graduationYear,
         });
 
         const idCardId = `id_${studentId}_${Date.now()}`;
@@ -106,6 +112,8 @@ export async function POST(req: Request) {
           qrPayload: qrPayload,
           issueDate: FieldValue.serverTimestamp(),
           expiryDate: Timestamp.fromDate(expiryDate),
+          graduationYear,
+          isFinalYear,
           status: 'ACTIVE',
           fullName: appData?.fullName,
           department: appData?.department,
