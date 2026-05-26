@@ -234,7 +234,10 @@ export default function StudentDashboard() {
   const cleanModernColors = React.useCallback((cssVal: string): string => {
     if (!cssVal) return cssVal;
     if (typeof cssVal !== 'string') return cssVal;
-    if (!cssVal.includes('oklch(') && !cssVal.includes('oklab(')) {
+    
+    const hasOklch = cssVal.toLowerCase().includes('oklch(');
+    const hasOklab = cssVal.toLowerCase().includes('oklab(');
+    if (!hasOklch && !hasOklab) {
       return cssVal;
     }
 
@@ -251,40 +254,70 @@ export default function StudentDashboard() {
     const cache = (cleanModernColors as any)._cache || new Map<string, string>();
     (cleanModernColors as any)._cache = cache;
 
-    return cssVal.replace(/(oklch|oklab)\([^)]+\)/g, (match) => {
-      if (cache.has(match)) {
-        return cache.get(match)!;
-      }
-      
-      let resolved = '';
-      if (ctx) {
-        try {
-          ctx.fillStyle = match;
-          resolved = ctx.fillStyle;
-        } catch (e) {
-          // Safe canvas fallback
+    let result = '';
+    let i = 0;
+    const len = cssVal.length;
+
+    while (i < len) {
+      const matchOklch = cssVal.slice(i, i + 6).toLowerCase() === 'oklch(';
+      const matchOklab = cssVal.slice(i, i + 6).toLowerCase() === 'oklab(';
+
+      if (matchOklch || matchOklab) {
+        const startIdx = i;
+        i += 6; // Move past 'oklch(' or 'oklab('
+        
+        let braceCount = 1;
+        while (i < len && braceCount > 0) {
+          const char = cssVal[i];
+          if (char === '(') {
+            braceCount++;
+          } else if (char === ')') {
+            braceCount--;
+          }
+          i++;
         }
+        
+        const fullMatch = cssVal.substring(startIdx, i);
+        
+        if (cache.has(fullMatch)) {
+          result += cache.get(fullMatch);
+        } else {
+          let resolved = '';
+          if (ctx) {
+            try {
+              ctx.fillStyle = fullMatch;
+              resolved = ctx.fillStyle;
+            } catch (e) {
+              // Safe canvas fallback
+            }
+          }
+          
+          if (resolved && resolved !== '#000000' && resolved !== 'rgba(0,0,0,0)' && resolved !== 'rgba(0, 0, 0, 0)') {
+            cache.set(fullMatch, resolved);
+            result += resolved;
+          } else {
+            // Smart theme fallbacks for orange branding and black/white colors
+            const lower = fullMatch.toLowerCase();
+            let fallback = '#f97316'; // Catholic University orange branding color
+            if (lower.includes('white') || lower.includes('100%') || lower.includes('1 0') || lower.includes('0.99') || lower.includes(' 1 ') || lower.includes('/ 1)')) {
+              fallback = '#ffffff';
+            } else if (lower.includes('black') || lower.includes('0%') || lower.includes('0  0  0') || lower.includes(' 0 0 0')) {
+              fallback = '#000000';
+            } else if (lower.includes('slate') || lower.includes('gray') || lower.includes('grey') || lower.includes('0.2') || lower.includes('0.1')) {
+              fallback = '#475569';
+            }
+            
+            cache.set(fullMatch, fallback);
+            result += fallback;
+          }
+        }
+      } else {
+        result += cssVal[i];
+        i++;
       }
-      
-      if (resolved && resolved !== '#000000' && resolved !== 'rgba(0,0,0,0)' && resolved !== 'rgba(0, 0, 0, 0)') {
-        cache.set(match, resolved);
-        return resolved;
-      }
-      
-      // Smart theme fallbacks for orange branding and black/white colors
-      const lower = match.toLowerCase();
-      let fallback = '#f97316'; // Catholic University orange branding color
-      if (lower.includes('white') || lower.includes('100%') || lower.includes('1 0') || lower.includes('0.99') || lower.includes(' 1 ') || lower.includes('/ 1)')) {
-        fallback = '#ffffff';
-      } else if (lower.includes('black') || lower.includes('0%') || lower.includes('0 0 0')) {
-        fallback = '#000000';
-      } else if (lower.includes('slate') || lower.includes('gray') || lower.includes('grey') || lower.includes('0.2') || lower.includes('0.1')) {
-        fallback = '#475569';
-      }
-      
-      cache.set(match, fallback);
-      return fallback;
-    });
+    }
+
+    return result;
   }, []);
 
   const downloadPDF = async () => {
