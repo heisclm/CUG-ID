@@ -21,7 +21,7 @@ import Link from 'next/link';
 import { usePaystackPayment } from 'react-paystack';
 import { useAuth } from '@/lib/auth-context';
 import { sendNotification } from '@/lib/notifications';
-import html2canvas from 'html2canvas';
+import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 
 const StatCard = ({ title, value, icon: Icon, color, trend }: any) => (
@@ -230,261 +230,37 @@ export default function StudentDashboard() {
 
   const [isDownloading, setIsDownloading] = useState(false);
 
-  // Helper to convert modern CSS colors (oklch, oklab) to standard RGB/Hex values that html2canvas supports
-  const cleanModernColors = React.useCallback((cssVal: string): string => {
-    if (!cssVal) return cssVal;
-    if (typeof cssVal !== 'string') return cssVal;
-    
-    const hasOklch = cssVal.toLowerCase().includes('oklch(');
-    const hasOklab = cssVal.toLowerCase().includes('oklab(');
-    if (!hasOklch && !hasOklab) {
-      return cssVal;
-    }
-
-    // Lazy load canvas to avoid SSR issues or slow initialization
-    let canvas: any = null;
-    let ctx: any = null;
-    if (typeof document !== 'undefined') {
-      canvas = document.createElement('canvas');
-      canvas.width = 1;
-      canvas.height = 1;
-      ctx = canvas.getContext('2d');
-    }
-
-    const cache = (cleanModernColors as any)._cache || new Map<string, string>();
-    (cleanModernColors as any)._cache = cache;
-
-    let result = '';
-    let i = 0;
-    const len = cssVal.length;
-
-    while (i < len) {
-      const matchOklch = cssVal.slice(i, i + 6).toLowerCase() === 'oklch(';
-      const matchOklab = cssVal.slice(i, i + 6).toLowerCase() === 'oklab(';
-
-      if (matchOklch || matchOklab) {
-        const startIdx = i;
-        i += 6; // Move past 'oklch(' or 'oklab('
-        
-        let braceCount = 1;
-        while (i < len && braceCount > 0) {
-          const char = cssVal[i];
-          if (char === '(') {
-            braceCount++;
-          } else if (char === ')') {
-            braceCount--;
-          }
-          i++;
-        }
-        
-        const fullMatch = cssVal.substring(startIdx, i);
-        
-        if (cache.has(fullMatch)) {
-          result += cache.get(fullMatch);
-        } else {
-          let resolved = '';
-          if (ctx) {
-            try {
-              ctx.fillStyle = fullMatch;
-              resolved = ctx.fillStyle;
-            } catch (e) {
-              // Safe canvas fallback
-            }
-          }
-          
-          if (resolved && resolved !== '#000000' && resolved !== 'rgba(0,0,0,0)' && resolved !== 'rgba(0, 0, 0, 0)') {
-            cache.set(fullMatch, resolved);
-            result += resolved;
-          } else {
-            // Smart theme fallbacks for orange branding and black/white colors
-            const lower = fullMatch.toLowerCase();
-            let fallback = '#f97316'; // Catholic University orange branding color
-            if (lower.includes('white') || lower.includes('100%') || lower.includes('1 0') || lower.includes('0.99') || lower.includes(' 1 ') || lower.includes('/ 1)')) {
-              fallback = '#ffffff';
-            } else if (lower.includes('black') || lower.includes('0%') || lower.includes('0  0  0') || lower.includes(' 0 0 0')) {
-              fallback = '#000000';
-            } else if (lower.includes('slate') || lower.includes('gray') || lower.includes('grey') || lower.includes('0.2') || lower.includes('0.1')) {
-              fallback = '#475569';
-            }
-            
-            cache.set(fullMatch, fallback);
-            result += fallback;
-          }
-        }
-      } else {
-        result += cssVal[i];
-        i++;
-      }
-    }
-
-    return result;
-  }, []);
-
   const downloadPDF = async () => {
     const input = document.getElementById('id-card-element');
     if (!input) return;
 
     setIsDownloading(true);
-    let portal: HTMLDivElement | null = null;
-    const detachedStyles: Array<{ el: Element; parent: ParentNode; nextSibling: ChildNode | null }> = [];
-    let tempStyleBlock: HTMLStyleElement | null = null;
-    
+
     try {
-      // Create a temporary container for full-size desktop rendering
-      portal = document.createElement('div');
-      portal.style.position = 'fixed';
-      portal.style.left = '-9999px';
-      portal.style.top = '-9999px';
-      portal.style.width = '480px';
-      portal.style.height = '302px';
-      document.body.appendChild(portal);
-
-      // Clone the card for capture
-      const clone = input.cloneNode(true) as HTMLElement;
-      clone.style.width = '480px';
-      clone.style.height = '302px';
-      clone.style.aspectRatio = '1.586/1';
-      clone.style.minHeight = '0px';
-
-      // Bypass mobile display queries inside the clone by copying responsive styles as active styles
-      const allElements = clone.querySelectorAll('*');
-      allElements.forEach((el) => {
-        const classes = Array.from(el.classList);
-        classes.forEach((className) => {
-          if (className.startsWith('sm:')) {
-            el.classList.add(className.substring(3));
-          }
-        });
+      // Use html-to-image to generate the image, which correctly processes all modern CSS including oklab/oklch
+      const dataUrl = await toPng(input, {
+        quality: 1.0,
+        pixelRatio: 3, // High resolution
+        style: {
+          transform: 'scale(1)', // Ensure it renders flat
+          transformOrigin: 'top left',
+        }
       });
 
-      // Recursively clean inline styles of all cloned elements
-      const cleanInlineStyles = (elem: HTMLElement) => {
-        if (elem.style) {
-          for (let i = 0; i < elem.style.length; i++) {
-            const prop = elem.style[i];
-            const val = elem.style.getPropertyValue(prop);
-            if (val && (val.includes('oklch') || val.includes('oklab'))) {
-              elem.style.setProperty(prop, cleanModernColors(val));
-            }
-          }
-        }
-        Array.from(elem.children).forEach(child => cleanInlineStyles(child as HTMLElement));
-      };
-      cleanInlineStyles(clone);
-
-      portal.appendChild(clone);
-
-      // Extract, clean, and consolidate all styles into a single temp stylesheet
-      const styleElements = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'));
-      let consolidatedCSSText = '';
-
-      for (const styleEl of styleElements) {
-        try {
-          if (styleEl.tagName === 'STYLE') {
-            const css = styleEl.textContent || '';
-            consolidatedCSSText += '\n' + css;
-          } else if (styleEl.tagName === 'LINK') {
-            const sheet = (styleEl as any).sheet;
-            if (sheet) {
-              try {
-                const rules = Array.from(sheet.cssRules || []);
-                const css = rules.map((r: any) => r.cssText).join('\n');
-                consolidatedCSSText += '\n' + css;
-              } catch (e) {
-                // Ignore CORS sheets or sheets we can't read rules from.
-              }
-            }
-          }
-        } catch (err) {
-          console.warn('Error processing style element:', err);
-        }
-      }
-
-      // Detach all style elements from DOM to cleanly clear document.styleSheets
-      for (const styleEl of styleElements) {
-        if (styleEl.parentNode) {
-          detachedStyles.push({
-            el: styleEl,
-            parent: styleEl.parentNode,
-            nextSibling: styleEl.nextSibling
-          });
-          styleEl.parentNode.removeChild(styleEl);
-        }
-      }
-
-      // Add a cleaned consolidated style block (this is the ONLY active stylesheet now)
-      const cleanedCSS = cleanModernColors(consolidatedCSSText);
-      tempStyleBlock = document.createElement('style');
-      tempStyleBlock.id = 'temp-cleaned-html2canvas-styles';
-      tempStyleBlock.textContent = cleanedCSS;
-      document.head.appendChild(tempStyleBlock);
-
-      // 3. Render the card to canvas with html2canvas (now free of oklab/oklch rules!)
-      const canvas = await html2canvas(clone, {
-        scale: 2.5, // Ultra sharp high resolution
-        useCORS: true, 
-        allowTaint: false, 
-        backgroundColor: null,
-      });
-
-      // Restore all original stylesheets and delete the temp block immediately
-      if (tempStyleBlock && tempStyleBlock.parentNode) {
-        tempStyleBlock.parentNode.removeChild(tempStyleBlock);
-        tempStyleBlock = null;
-      }
-      for (const item of detachedStyles) {
-        try {
-          item.parent.insertBefore(item.el, item.nextSibling);
-        } catch (e) {
-          try {
-            item.parent.appendChild(item.el);
-          } catch (err) {}
-        }
-      }
-      detachedStyles.length = 0;
-
-      // Cleanup portal DOM
-      if (portal) {
-        document.body.removeChild(portal);
-        portal = null;
-      }
-
-      // Save PDF output
-      const imgData = canvas.toDataURL('image/png');
+      // A typical CR-80 card ratio is roughly 1.586
+      // Dimensions in jsPDF pt/px (roughly 330 x 208 for high res scaling to fit screen)
       const pdf = new jsPDF({
         orientation: 'landscape',
         unit: 'px',
-        format: [canvas.width, canvas.height]
+        format: [330, 208]
       });
 
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+      pdf.addImage(dataUrl, 'PNG', 0, 0, 330, 208);
       pdf.save(`${idCard?.studentId || 'student'}_id_card.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Failed to generate PDF. Please try again.');
     } finally {
-      // Emergency cleanups in case anything fails during the process
-      if (tempStyleBlock && tempStyleBlock.parentNode) {
-        try {
-          tempStyleBlock.parentNode.removeChild(tempStyleBlock);
-        } catch (err) {}
-      }
-      if (detachedStyles && detachedStyles.length > 0) {
-        for (const item of detachedStyles) {
-          try {
-            item.parent.insertBefore(item.el, item.nextSibling);
-          } catch (e) {
-            try {
-              item.parent.appendChild(item.el);
-            } catch (err) {}
-          }
-        }
-      }
-      if (portal) {
-        try {
-          document.body.removeChild(portal);
-        } catch (err) {}
-      }
       setIsDownloading(false);
     }
   };
