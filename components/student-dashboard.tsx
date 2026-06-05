@@ -236,14 +236,57 @@ export default function StudentDashboard() {
 
     setIsDownloading(true);
 
+    let portal: HTMLDivElement | null = null;
+
     try {
-      // Use html-to-image to generate the image, which correctly processes all modern CSS including oklab/oklch
-      const dataUrl = await toPng(input, {
+      // 1. Create a portal for desktop-sized rendering
+      portal = document.createElement('div');
+      portal.style.position = 'fixed';
+      portal.style.left = '-9999px';
+      portal.style.top = '-9999px';
+      portal.style.width = '460px'; // desktop sizing
+      portal.style.height = '290px'; // calculated aspect ratio
+      
+      // 2. Clone the element
+      const clone = input.cloneNode(true) as HTMLElement;
+      
+      // Override width restraints that interfere with rendering independent of screen
+      clone.style.width = '460px';
+      clone.style.height = '290px';
+      clone.style.maxWidth = 'none';
+      clone.style.margin = '0';
+      clone.classList.remove('w-full', 'max-w-[460px]', 'mx-auto');
+
+      // 3. Bypass mobile display queries by swapping responsive tailwind classes
+      const allElements = [clone, ...Array.from(clone.querySelectorAll('*'))];
+      allElements.forEach((el) => {
+        if (!(el instanceof HTMLElement)) return;
+        const classes = Array.from(el.classList);
+        classes.forEach((className) => {
+          if (className.startsWith('sm:') || className.startsWith('xs:') || className.startsWith('md:') || className.startsWith('lg:')) {
+            const parts = className.split(':');
+            el.classList.add(parts[parts.length - 1]);
+          }
+        });
+      });
+
+      portal.appendChild(clone);
+      document.body.appendChild(portal);
+
+      // Use html-to-image to generate the image
+      const dataUrl = await toPng(clone, {
         quality: 1.0,
-        pixelRatio: 3, // High resolution
+        pixelRatio: 4, // High resolution
+        width: 460,
+        height: 290,
+        canvasWidth: 460 * 4,
+        canvasHeight: 290 * 4,
         style: {
           transform: 'scale(1)', // Ensure it renders flat
           transformOrigin: 'top left',
+          margin: '0',
+          width: '460px',
+          height: '290px'
         }
       });
 
@@ -261,6 +304,9 @@ export default function StudentDashboard() {
       console.error('Error generating PDF:', error);
       alert('Failed to generate PDF. Please try again.');
     } finally {
+      if (portal && portal.parentNode) {
+        portal.parentNode.removeChild(portal);
+      }
       setIsDownloading(false);
     }
   };
