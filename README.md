@@ -1,7 +1,6 @@
 # CUG Digital ID System
 
-![CUG Digital ID System](https://picsum.photos/seed/cug-id/1200/400)
-
+![CUG Digital ID 
 A comprehensive, production-grade Digital ID Card Management System designed for the **Catholic University of Ghana (CUG)**. This platform streamlines the entire lifecycle of student identification, from application and payment to real-time security verification.
 
 ## 🚀 Key Features
