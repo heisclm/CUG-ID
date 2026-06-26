@@ -24,12 +24,8 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-950">
         <div className="relative flex items-center justify-center">
           <div className="absolute inset-0 bg-orange-500/20 rounded-full animate-ping"></div>
-          <div className="relative bg-white dark:bg-gray-900 p-4 rounded-full shadow-xl border border-gray-100 dark:border-gray-800 animate-bounce overflow-hidden flex items-center justify-center">
-            {schoolLogoUrl ? (
-              <img src={schoolLogoUrl} alt="Logo" className="w-10 h-10 object-cover rounded-full" />
-            ) : (
-              <GraduationCap className="w-10 h-10 text-orange-500" />
-            )}
+          <div className="relative bg-white dark:bg-gray-900 p-4 rounded-full shadow-xl border border-gray-100 dark:border-gray-800 animate-bounce">
+            <GraduationCap className="w-10 h-10 text-orange-500" />
           </div>
         </div>
         <p className="mt-6 text-gray-500 dark:text-gray-400 font-medium animate-pulse">Loading CUG ID...</p>
