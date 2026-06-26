@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 
 const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const pathname = usePathname();
-  const { profile, logout } = useAuth();
+  const { profile, logout, schoolLogoUrl } = useAuth();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -59,8 +59,12 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) 
       )}>
         <div className="flex items-center justify-between mb-8 px-2 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-orange-500/20">
-              <GraduationCap size={24} />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden bg-orange-500 text-white shadow-lg shadow-orange-500/20">
+              {schoolLogoUrl ? (
+                <img src={schoolLogoUrl} alt="Logo" className="w-full h-full object-cover" />
+              ) : (
+                <GraduationCap size={24} />
+              )}
             </div>
             <span className="font-bold text-xl text-gray-800 dark:text-white tracking-tight">CUG ID</span>
           </div>

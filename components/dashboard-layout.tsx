@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { GraduationCap, Eye, EyeOff } from 'lucide-react';
 
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading, login, loginWithEmail, signUp, resetPassword } = useAuth();
+  const { user, loading, schoolLogoUrl, login, loginWithEmail, signUp, resetPassword } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [isResetPassword, setIsResetPassword] = useState(false);
@@ -24,8 +24,12 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-950">
         <div className="relative flex items-center justify-center">
           <div className="absolute inset-0 bg-orange-500/20 rounded-full animate-ping"></div>
-          <div className="relative bg-white dark:bg-gray-900 p-4 rounded-full shadow-xl border border-gray-100 dark:border-gray-800 animate-bounce">
-            <GraduationCap className="w-10 h-10 text-orange-500" />
+          <div className="relative bg-white dark:bg-gray-900 p-4 rounded-full shadow-xl border border-gray-100 dark:border-gray-800 animate-bounce overflow-hidden flex items-center justify-center">
+            {schoolLogoUrl ? (
+              <img src={schoolLogoUrl} alt="Logo" className="w-10 h-10 object-cover rounded-full" />
+            ) : (
+              <GraduationCap className="w-10 h-10 text-orange-500" />
+            )}
           </div>
         </div>
         <p className="mt-6 text-gray-500 dark:text-gray-400 font-medium animate-pulse">Loading CUG ID...</p>
@@ -58,8 +62,12 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
     return (
       <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-950 p-4 sm:p-6 transition-colors overflow-y-auto">
         <div className="max-w-md w-full bg-white dark:bg-gray-900 rounded-[2rem] shadow-xl shadow-orange-500/5 p-6 sm:p-10 text-center space-y-6 border border-gray-100 dark:border-gray-800 my-8">
-          <div className="w-16 h-16 bg-orange-500 rounded-2xl flex items-center justify-center text-white mx-auto shadow-lg shadow-orange-500/20">
-            <GraduationCap size={32} />
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center overflow-hidden bg-orange-500 text-white mx-auto shadow-lg shadow-orange-500/20">
+            {schoolLogoUrl ? (
+              <img src={schoolLogoUrl} alt="Logo" className="w-full h-full object-cover" />
+            ) : (
+              <GraduationCap size={32} />
+            )}
           </div>
           
           <div className="space-y-2">

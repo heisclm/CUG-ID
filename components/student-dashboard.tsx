@@ -90,22 +90,13 @@ const CugLogoSVG = () => (
 );
 
 export default function StudentDashboard() {
-  const { profile, idCard } = useAuth();
+  const { profile, idCard, schoolLogoUrl } = useAuth();
   const [latestApp, setLatestApp] = useState<any>(null);
-  const [schoolLogoUrl, setSchoolLogoUrl] = useState('/cug-logo.jpg');
   const [logoError, setLogoError] = useState(false);
   const currentTime = useCurrentTime();
   
   useEffect(() => {
-    const unsubParams = onSnapshot(doc(db, 'settings', 'general'), (doc) => {
-      if (doc.exists() && doc.data().schoolLogoUrl) {
-        setSchoolLogoUrl(doc.data().schoolLogoUrl);
-      }
-    }, (error) => {
-      console.warn("Could not load general school settings: ", error);
-    });
-
-    if (!profile?.uid) return unsubParams;
+    if (!profile?.uid) return;
     const q = query(
       collection(db, 'applications'), 
       where('studentUid', '==', profile.uid)
@@ -236,62 +227,15 @@ export default function StudentDashboard() {
 
     setIsDownloading(true);
 
-    let portal: HTMLDivElement | null = null;
-
     try {
-      // 1. Create a portal for desktop-sized rendering
-      portal = document.createElement('div');
-      portal.style.position = 'fixed';
-      portal.style.left = '-9999px';
-      portal.style.top = '-9999px';
-      portal.style.width = '460px'; // desktop sizing
-      portal.style.height = '290px'; // calculated aspect ratio
-      
-      // 2. Clone the element
-      const clone = input.cloneNode(true) as HTMLElement;
-      
-      // Override width restraints that interfere with rendering independent of screen
-      clone.style.width = '460px';
-      clone.style.height = '290px';
-      clone.style.maxWidth = 'none';
-      clone.style.margin = '0';
-      clone.classList.remove('w-full', 'max-w-[460px]', 'mx-auto');
-
-      // 3. Bypass mobile display queries by swapping responsive tailwind classes
-      const allElements = [clone, ...Array.from(clone.querySelectorAll('*'))];
-      allElements.forEach((el) => {
-        if (!(el instanceof HTMLElement)) return;
-        const classes = Array.from(el.classList);
-        classes.forEach((className) => {
-          if (className.startsWith('sm:') || className.startsWith('xs:') || className.startsWith('md:') || className.startsWith('lg:')) {
-            const parts = className.split(':');
-            el.classList.add(parts[parts.length - 1]);
-          }
-        });
-      });
-
-      portal.appendChild(clone);
-      document.body.appendChild(portal);
-
-      // Use html-to-image to generate the image
-      const dataUrl = await toPng(clone, {
+      // Use html-to-image to generate the image directly from the element
+      const dataUrl = await toPng(input, {
         quality: 1.0,
         pixelRatio: 4, // High resolution
-        width: 460,
-        height: 290,
-        canvasWidth: 460 * 4,
-        canvasHeight: 290 * 4,
-        style: {
-          transform: 'scale(1)', // Ensure it renders flat
-          transformOrigin: 'top left',
-          margin: '0',
-          width: '460px',
-          height: '290px'
-        }
       });
 
-      // A typical CR-80 card ratio is roughly 1.586
-      // Dimensions in jsPDF pt/px (roughly 330 x 208 for high res scaling to fit screen)
+      // Original proportions: width / height = 1.586
+      // Let's use 330 x 208 for high res scaling to fit screen
       const pdf = new jsPDF({
         orientation: 'landscape',
         unit: 'px',
@@ -304,9 +248,6 @@ export default function StudentDashboard() {
       console.error('Error generating PDF:', error);
       alert('Failed to generate PDF. Please try again.');
     } finally {
-      if (portal && portal.parentNode) {
-        portal.parentNode.removeChild(portal);
-      }
       setIsDownloading(false);
     }
   };

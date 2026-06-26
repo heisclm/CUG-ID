@@ -31,6 +31,7 @@ interface AuthContextType {
   profile: UserProfile | null;
   idCard: any | null;
   loading: boolean;
+  schoolLogoUrl: string;
   login: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
   signUp: (email: string, pass: string, fullName: string) => Promise<void>;
@@ -44,9 +45,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [idCard, setIdCard] = useState<any | null>(null);
+  const [schoolLogoUrl, setSchoolLogoUrl] = useState<string>('/cug-logo.jpg');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Listen for school logo settings globally
+    const unsubSettings = onSnapshot(doc(db, 'settings', 'general'), (doc) => {
+      if (doc.exists() && doc.data().schoolLogoUrl) {
+        setSchoolLogoUrl(doc.data().schoolLogoUrl);
+      }
+    }, (error) => {
+      console.warn("Could not load university settings logo: ", error);
+    });
+
     // Safety timeout to ensure app doesn't stay stuck in loading forever
     const timeout = setTimeout(() => {
       setLoading(prev => {
@@ -121,6 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       unsubscribe();
+      unsubSettings();
       clearTimeout(timeout);
     };
   }, []);
@@ -150,7 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, idCard, loading, login, loginWithEmail, signUp, resetPassword, logout }}>
+    <AuthContext.Provider value={{ user, profile, idCard, loading, schoolLogoUrl, login, loginWithEmail, signUp, resetPassword, logout }}>
       {children}
     </AuthContext.Provider>
   );
